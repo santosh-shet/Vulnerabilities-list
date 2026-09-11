@@ -1,0 +1,18 @@
+[
+ {
+  "date": "2026-09-11",
+  "counts": {
+   "total": 6125,
+   "kev": 19,
+   "critical": 706,
+   "high": 2821,
+   "medium": 2240,
+   "low": 263,
+   "unscored": 90,
+   "watchlist": 2300,
+   "new_today": 6125
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-11.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-11.pdf"
+ }
+]
