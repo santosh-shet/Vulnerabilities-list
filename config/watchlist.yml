@@ -1,0 +1,56 @@
+# Keywords matched (case-insensitive) against each CVE's description and
+# vendor:product string. Matches are flagged in the "Watchlist" column/sheet
+# and get their own section in the PDF. Edit freely - the next run picks it up.
+#
+# Tip: use vendor and product names as they appear in CPE strings
+# (e.g. "microsoft", "oracle", "openssl") plus technology terms your estate uses.
+
+keywords:
+  - microsoft
+  - windows
+  - oracle
+  - java
+  - openssl
+  - openssh
+  - linux kernel
+  - red hat
+  - ubuntu
+  - vmware
+  - citrix
+  - fortinet
+  - palo alto
+  - cisco
+  - f5
+  - ibm
+  - websphere
+  - db2
+  - sap
+  - apache
+  - tomcat
+  - nginx
+  - kubernetes
+  - docker
+  - jenkins
+  - gitlab
+  - atlassian
+  - jira
+  - confluence
+  - spring
+  - log4j
+  - node.js
+  - python
+  - .net
+  - postgresql
+  - mysql
+  - mongodb
+  - redis
+  - elasticsearch
+  - kafka
+  - azure
+  - aws
+  - okta
+  - active directory
+
+# CVEs below this CVSS score are still stored and listed, but you can use this
+# later to trim the email/PDF if volume becomes a problem. 0 = keep everything.
+min_cvss: 0

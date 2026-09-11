@@ -1,0 +1,93 @@
+name: Daily vulnerability report
+
+on:
+  schedule:
+    # 06:00 UTC daily = 07:00 CET (winter) / 08:00 CEST (summer).
+    # Gives 2+ hours of buffer before the team checks at 10:00 CET, even if
+    # GitHub delays the scheduled run. Cron is always UTC.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: "Lookback window in hours (use 48-72 after a missed run)"
+        default: "24"
+      date:
+        description: "Backfill a specific day (YYYY-MM-DD). Leave blank for rolling window."
+        default: ""
+
+permissions:
+  contents: write   # commit data/, reports/, docs/
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-vulns
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      xlsx: ${{ steps.build.outputs.xlsx }}
+      pdf: ${{ steps.build.outputs.pdf }}
+      report_date: ${{ steps.build.outputs.report_date }}
+      summary: ${{ steps.build.outputs.summary }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Fetch NVD / KEV / EPSS
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}   # optional but strongly recommended
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            python scripts/fetch_vulns.py --date "${{ github.event.inputs.date }}"
+          else
+            python scripts/fetch_vulns.py --hours "${{ github.event.inputs.hours || '24' }}"
+          fi
+
+      - name: Build Excel, PDF and dashboard
+        id: build
+        run: python scripts/build_reports.py --repo-url "https://github.com/${{ github.repository }}"
+
+      - name: Commit results
+        run: |
+          git config user.name  "vuln-bot"
+          git config user.email "vuln-bot@users.noreply.github.com"
+          git add data reports docs
+          git commit -m "Vulnerability report ${{ steps.build.outputs.report_date }}" || echo "nothing to commit"
+          git pull --rebase origin ${{ github.ref_name }}
+          git push
+
+      - name: Upload report artefacts (90-day retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuln-report-${{ steps.build.outputs.report_date }}
+          path: |
+            ${{ steps.build.outputs.xlsx }}
+            ${{ steps.build.outputs.pdf }}
+          retention-days: 90
+
+      - name: Upload Pages site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
