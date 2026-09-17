@@ -48,6 +48,17 @@ def get_with_retry(url, params=None, headers=None, tries=5, backoff=6):
             r = SESSION.get(url, params=params, headers=headers, timeout=60)
             if r.status_code == 200:
                 return r
+            # NVD returns 404 with header "message: Invalid apiKey" for bad keys.
+            # Don't retry - it will never succeed. Fail fast with a clear message.
+            if r.status_code == 404:
+                msg = r.headers.get("message", "")
+                raise RuntimeError(
+                    f"NVD returned 404. Response header message: '{msg}'. "
+                    f"If you set NVD_API_KEY, it may be invalid, not yet activated, "
+                    f"or contain extra whitespace. Remove the secret and re-run, "
+                    f"or request a new key at https://nvd.nist.gov/developers/request-an-api-key "
+                    f"and click the activation link in the email before adding it."
+                )
             if r.status_code in (403, 429, 503):
                 wait = backoff * attempt
                 print(f"  {r.status_code} from {url} - retrying in {wait}s", file=sys.stderr)
@@ -55,6 +66,8 @@ def get_with_retry(url, params=None, headers=None, tries=5, backoff=6):
                 continue
             r.raise_for_status()
         except requests.RequestException as e:
+            if isinstance(e, RuntimeError):
+                raise
             print(f"  request error: {e} - attempt {attempt}/{tries}", file=sys.stderr)
             time.sleep(backoff * attempt)
     raise RuntimeError(f"Failed to fetch {url} after {tries} attempts")
@@ -77,9 +90,12 @@ def load_watchlist():
 def fetch_nvd(start: datetime, end: datetime, date_field: str):
     """date_field is 'pub' (newly published) or 'lastMod' (published or modified)."""
     headers = {}
-    api_key = os.getenv("NVD_API_KEY")
+    api_key = (os.getenv("NVD_API_KEY") or "").strip()
     if api_key:
         headers["apiKey"] = api_key
+        print(f"  Using NVD API key ({api_key[:4]}...{api_key[-4:]})")
+    else:
+        print("  No NVD_API_KEY set - using public rate limit (slower but works)")
     sleep_between = 1.0 if api_key else 7.0  # stay under 5 req / 30 s without a key
 
     params = {
