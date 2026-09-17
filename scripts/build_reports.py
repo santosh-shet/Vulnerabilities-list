@@ -532,7 +532,7 @@ def build_dashboard(snapshot, xlsx_rel, pdf_rel, repo_url):
 
     # Vendor / Product / Package dropdown values.
     vpp_values = set()
-    for _item in snapshot.get("items", snapshot.get("vulnerabilities", [])):
+    for _item in snapshot.get("records", []):
         if not isinstance(_item, dict):
             continue
         for _key in ("vendor_product", "ecosystem_package", "package", "product", "vendor"):
@@ -645,7 +645,7 @@ details{{margin-top:24px}}
 summary{{cursor:pointer;font-weight:600}}
 footer{{color:var(--muted);font-size:12px;margin-top:24px}}
 
-.filter-group select#vppFilter { min-width: 240px; max-width: 420px; }
+.filter-group select#vppFilter {{ min-width: 240px; max-width: 420px; }}
 </style>
 </head>
 <body>
@@ -695,13 +695,10 @@ window {snapshot['window_start'][:16]} to {snapshot['window_end'][:16]} UTC
 </div>
 
 
-<div class="filter-group">
-  <label for="vppFilter">Vendor / Product / Package</label>
-  <select id="vppFilter" onchange="applyFilters()">
-    <option value="">All</option>
-    
-  </select>
-</div>
+<select id="vppFilter">
+<option value="">All vendors / products / packages</option>
+{vpp_options}
+</select>
 <table id="t">
 <thead>
 <tr>
@@ -739,12 +736,14 @@ const sev=document.getElementById('sev');
 const kev=document.getElementById('kevonly');
 const wl=document.getElementById('wlonly');
 const rsn=document.getElementById('rsn');
+const vpp=document.getElementById('vppFilter');
 const rows=[...document.querySelectorAll('#t tbody tr')];
 
 function apply(){{
   const search=q.value.toLowerCase();
   const severity=sev.value;
   const reason=rsn.value;
+  const vendorProductPackage=vpp.value.toLowerCase();
   let shown=0;
 
   rows.forEach(r=>{{
@@ -763,6 +762,7 @@ function apply(){{
       (!severity || cells[4].innerText===severity) &&
       (!kev.checked || cells[5].innerText==='KEV') &&
       (!wl.checked || cells[7].innerText.trim()!=='') &&
+      (!vendorProductPackage || cells[8].innerText.toLowerCase().includes(vendorProductPackage)) &&
       reasonOk;
 
     r.style.display=ok?'':'none';
@@ -772,7 +772,7 @@ function apply(){{
   document.getElementById('count').textContent=shown+' of '+rows.length+' shown';
 }}
 
-[q,sev,kev,wl,rsn].forEach(e=>e.addEventListener('input',apply));
+[q,sev,kev,wl,rsn,vpp].forEach(e=>e.addEventListener('input',apply));
 apply();
 
 document.querySelectorAll('#t th').forEach((th,i)=>th.addEventListener('click',()=>{{
@@ -790,16 +790,7 @@ document.querySelectorAll('#t th').forEach((th,i)=>th.addEventListener('click',(
 }}));
 </script>
 
-<script>
-function applyFilters() {
-  const vpp = (document.getElementById('vppFilter') || {}).value || '';
-  document.querySelectorAll('table tbody tr').forEach(function(row) {
-    const haystack = (row.dataset.vendorProductPackage || row.innerText || '').toLowerCase();
-    const matchesVpp = !vpp || haystack.includes(vpp.toLowerCase());
-    row.style.display = matchesVpp ? '' : 'none';
-  });
-}
-</script>
+
 
 </body>
 </html>"""
