@@ -2,23 +2,21 @@
 """
 Daily vulnerability fetcher.
 
-Sources
-  NVD            new CVEs published in the window (+ CVEs published in the last
-                 N days that were modified in the window - "Updated" rows)
-  CISA KEV       actively exploited flag, due dates; KEV additions become rows
-  FIRST EPSS     exploit probability
-  Vulnrichment   CISA ADP scoring/SSVC for CVEs NVD hasn't scored yet
-  GHSA           GitHub Security Advisories - package ecosystem, fixed version
-  OSV.dev        additional ecosystems (configurable), aliases, fixed versions
+Daily-bucket rule:
+  - "New" means the advisory/CVE was PUBLISHED inside this report window.
+  - Older items are never reclassified as "New" because their lastModified/updated
+    timestamp changed.
+  - Older items are included only as "Updated" when a security-relevant change is
+    detected (for example: CVSS added/changed, severity/vector changed, or a
+    remediation/fixed version changed).
+  - CISA KEV additions remain a separate "Added to KEV" event.
+  - Historical daily snapshots are immutable: a CVE published on Sep 15 remains
+    in the Sep 15 snapshot even if it is updated on Sep 16.
 
-Usage
-  python scripts/fetch_vulns.py                  # last 24h
-  python scripts/fetch_vulns.py --hours 48
-  python scripts/fetch_vulns.py --date 2026-09-16
-
-Environment
-  NVD_API_KEY    optional; 50 req/30s instead of 5
-  GITHUB_TOKEN   optional; set automatically in Actions - raises GHSA rate limit
+Usage:
+    python scripts/fetch_vulns.py
+    python scripts/fetch_vulns.py --hours 24
+    python scripts/fetch_vulns.py --date 2026-09-16
 """
 import argparse
 import io
@@ -45,13 +43,10 @@ GHSA_URL = "https://api.github.com/advisories"
 OSV_BUCKET = "https://osv-vulnerabilities.storage.googleapis.com"
 
 SESSION = requests.Session()
-SESSION.headers.update({"User-Agent": "vuln-daily-report/2.0"})
+SESSION.headers.update({"User-Agent": "vuln-daily-report/3.0"})
 
 
-# --------------------------------------------------------------------------- #
-# Helpers
-# --------------------------------------------------------------------------- #
-def nvd_ts(dt: datetime) -> str:
+def nvd_ts(dt):
     return dt.strftime("%Y-%m-%dT%H:%M:%S.000")
 
 
@@ -64,11 +59,9 @@ def get_with_retry(url, params=None, headers=None, tries=5, backoff=6, ok404=Fal
             if r.status_code == 404:
                 if ok404:
                     return None
-                msg = r.headers.get("message", "")
                 raise RuntimeError(
-                    f"404 from {url}. Header message: '{msg}'. For NVD this usually means "
-                    f"NVD_API_KEY is invalid or not activated - remove the secret or request a "
-                    f"new key at https://nvd.nist.gov/developers/request-an-api-key"
+                    f"404 from {url}. For NVD this usually means the API key is invalid "
+                    "or not activated."
                 )
             if r.status_code in (403, 429, 503):
                 wait = backoff * attempt
@@ -76,8 +69,8 @@ def get_with_retry(url, params=None, headers=None, tries=5, backoff=6, ok404=Fal
                 time.sleep(wait)
                 continue
             r.raise_for_status()
-        except requests.RequestException as e:
-            print(f"  request error: {e} - attempt {attempt}/{tries}", file=sys.stderr)
+        except requests.RequestException as exc:
+            print(f"  request error: {exc} - attempt {attempt}/{tries}", file=sys.stderr)
             time.sleep(backoff * attempt)
     raise RuntimeError(f"Failed to fetch {url} after {tries} attempts")
 
@@ -85,10 +78,10 @@ def get_with_retry(url, params=None, headers=None, tries=5, backoff=6, ok404=Fal
 def load_config():
     cfg = {}
     if CONFIG.exists():
-        with open(CONFIG) as f:
+        with open(CONFIG, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
+
     cfg.setdefault("keywords", [])
-    cfg.setdefault("min_cvss", 0.0)
     cfg.setdefault("modified_lookback_days", 30)
     cfg.setdefault("include_updated", True)
     cfg.setdefault("sources", {})
@@ -97,13 +90,13 @@ def load_config():
     cfg["sources"].setdefault("osv", True)
     cfg.setdefault("osv_ecosystems", ["Go", "PyPI", "Maven", "npm", "NuGet"])
     cfg.setdefault("max_enrich_calls", 400)
-    cfg["keywords"] = [k.lower() for k in cfg["keywords"]]
+    cfg["keywords"] = [str(k).lower() for k in cfg["keywords"]]
     return cfg
 
 
-def blank_record(cve_id: str) -> dict:
+def blank_record(item_id):
     return {
-        "cve_id": cve_id,
+        "cve_id": item_id,
         "aliases": [],
         "sources": [],
         "reason": "New",
@@ -123,7 +116,7 @@ def blank_record(cve_id: str) -> dict:
         "ssvc_automatable": "",
         "description": "",
         "references": [],
-        "nvd_url": f"https://nvd.nist.gov/vuln/detail/{cve_id}" if cve_id.startswith("CVE-") else "",
+        "nvd_url": f"https://nvd.nist.gov/vuln/detail/{item_id}" if item_id.startswith("CVE-") else "",
         "advisory_url": "",
         "kev": False,
         "kev_date_added": "",
@@ -132,6 +125,9 @@ def blank_record(cve_id: str) -> dict:
         "kev_ransomware": False,
         "epss": None,
         "epss_percentile": None,
+        "watchlist_hits": "",
+        "watchlist_match": False,
+        "priority": "P4 - Low / Unscored",
     }
 
 
@@ -149,10 +145,7 @@ def severity_from_score(score):
     return ""
 
 
-# --------------------------------------------------------------------------- #
-# NVD
-# --------------------------------------------------------------------------- #
-def fetch_nvd(start: datetime, end: datetime, date_field: str, api_key: str):
+def fetch_nvd(start, end, date_field, api_key):
     headers = {"apiKey": api_key} if api_key else {}
     sleep_between = 1.0 if api_key else 7.0
     params = {
@@ -174,278 +167,463 @@ def fetch_nvd(start: datetime, end: datetime, date_field: str, api_key: str):
     return items
 
 
-def parse_cvss(metrics: dict):
-    """(score, severity, vector, version, source) preferring NVD Primary, then any."""
+def parse_cvss(metrics):
     best = None
-    for key, ver in (("cvssMetricV40", "4.0"), ("cvssMetricV31", "3.1"), ("cvssMetricV30", "3.0"), ("cvssMetricV2", "2.0")):
-        for e in metrics.get(key) or []:
-            data = e.get("cvssData", {})
+    for key, ver in (
+        ("cvssMetricV40", "4.0"),
+        ("cvssMetricV31", "3.1"),
+        ("cvssMetricV30", "3.0"),
+        ("cvssMetricV2", "2.0"),
+    ):
+        for entry in metrics.get(key) or []:
+            data = entry.get("cvssData", {})
             score = data.get("baseScore")
             if score is None:
                 continue
-            rank = 0 if e.get("type") == "Primary" else 1
-            cand = (rank, score, (data.get("baseSeverity") or e.get("baseSeverity") or "").upper(),
-                    data.get("vectorString", ""), ver, "NVD" if rank == 0 else e.get("source", "ADP"))
-            if best is None or cand[0] < best[0]:
-                best = cand
+            rank = 0 if entry.get("type") == "Primary" else 1
+            candidate = (
+                rank,
+                score,
+                (data.get("baseSeverity") or entry.get("baseSeverity") or "").upper(),
+                data.get("vectorString", ""),
+                ver,
+                "NVD" if rank == 0 else entry.get("source", "ADP"),
+            )
+            if best is None or candidate[0] < best[0]:
+                best = candidate
         if best and best[0] == 0:
             break
+
     if not best:
         return None, "", "", "", ""
-    _, score, sev, vec, ver, src = best
-    return score, sev or severity_from_score(score), vec, ver, src
+    _, score, severity, vector, version, source = best
+    return score, severity or severity_from_score(score), vector, version, source
 
 
-def normalise_nvd(item: dict) -> dict:
+def normalise_nvd(item):
     cve = item["cve"]
-    r = blank_record(cve["id"])
-    r["sources"].append("NVD")
-    r["published"] = cve.get("published", "")
-    r["last_modified"] = cve.get("lastModified", "")
-    r["status"] = cve.get("vulnStatus", "")
-    r["description"] = next((d["value"] for d in cve.get("descriptions", []) if d.get("lang") == "en"), "")
-    r["cvss_score"], r["cvss_severity"], r["cvss_vector"], r["cvss_version"], r["cvss_source"] = parse_cvss(cve.get("metrics", {}))
-    r["cwe"] = ", ".join(sorted({d["value"] for w in cve.get("weaknesses", []) for d in w.get("description", []) if d.get("value", "").startswith("CWE-")}))
-    r["references"] = [x["url"] for x in cve.get("references", [])][:5]
+    record = blank_record(cve["id"])
+    record["sources"].append("NVD")
+    record["published"] = cve.get("published", "")
+    record["last_modified"] = cve.get("lastModified", "")
+    record["status"] = cve.get("vulnStatus", "")
+    record["description"] = next(
+        (d["value"] for d in cve.get("descriptions", []) if d.get("lang") == "en"),
+        "",
+    )
+    (
+        record["cvss_score"],
+        record["cvss_severity"],
+        record["cvss_vector"],
+        record["cvss_version"],
+        record["cvss_source"],
+    ) = parse_cvss(cve.get("metrics", {}))
+
+    record["cwe"] = ", ".join(
+        sorted(
+            {
+                d["value"]
+                for weakness in cve.get("weaknesses", [])
+                for d in weakness.get("description", [])
+                if d.get("value", "").startswith("CWE-")
+            }
+        )
+    )
+    record["references"] = [x["url"] for x in cve.get("references", [])][:5]
+
     products = set()
-    for cfg in cve.get("configurations", []):
-        for node in cfg.get("nodes", []):
-            for m in node.get("cpeMatch", []):
-                parts = m.get("criteria", "").split(":")
+    for config in cve.get("configurations", []):
+        for node in config.get("nodes", []):
+            for match in node.get("cpeMatch", []):
+                parts = match.get("criteria", "").split(":")
                 if len(parts) > 4:
                     products.add(f"{parts[3]}:{parts[4]}")
-    r["vendor_product"] = ", ".join(sorted(products)[:10])
-    return r
+    record["vendor_product"] = ", ".join(sorted(products)[:10])
+    return record
 
 
-# --------------------------------------------------------------------------- #
-# CISA KEV
-# --------------------------------------------------------------------------- #
-def fetch_kev() -> dict:
+def load_previous_snapshot(report_date):
+    previous = sorted(p for p in DATA_DIR.glob("*.json") if p.stem < report_date)
+    if not previous:
+        return {}
+
+    try:
+        with open(previous[-1], encoding="utf-8") as f:
+            snapshot = json.load(f)
+        return {r["cve_id"]: r for r in snapshot.get("records", [])}
+    except Exception as exc:
+        print(f"  (couldn't read prior snapshot: {exc})", file=sys.stderr)
+        return {}
+
+
+def meaningful_nvd_change(previous, current):
+    """Return a short reason only for security-relevant NVD changes."""
+    if not previous:
+        # If the first time we see an older CVE it is already scored, don't
+        # call that a meaningful update unless it was newly published today.
+        return ""
+
+    old_score = previous.get("cvss_score")
+    new_score = current.get("cvss_score")
+    if old_score is None and new_score is not None:
+        return "CVSS added"
+    if old_score is not None and new_score is not None and float(old_score) != float(new_score):
+        return f"CVSS changed ({old_score} → {new_score})"
+
+    if previous.get("cvss_severity") != current.get("cvss_severity"):
+        return "Severity changed"
+
+    if previous.get("cvss_vector") != current.get("cvss_vector") and current.get("cvss_vector"):
+        return "CVSS vector changed"
+
+    if previous.get("ssvc_exploitation") != current.get("ssvc_exploitation"):
+        if current.get("ssvc_exploitation"):
+            return "SSVC exploitation changed"
+
+    return ""
+
+
+def fetch_kev():
     data = get_with_retry(KEV_URL).json()
     print(f"  KEV catalogue: {len(data.get('vulnerabilities', []))} entries")
     return {v["cveID"]: v for v in data.get("vulnerabilities", [])}
 
 
-# --------------------------------------------------------------------------- #
-# EPSS
-# --------------------------------------------------------------------------- #
 def fetch_epss(cve_ids):
     scores = {}
     ids = [c for c in cve_ids if c.startswith("CVE-")]
     for i in range(0, len(ids), 100):
-        batch = ids[i : i + 100]
+        batch = ids[i:i + 100]
         try:
-            r = get_with_retry(EPSS_URL, params={"cve": ",".join(batch)}, tries=2)
-            for row in r.json().get("data", []):
-                scores[row["cve"]] = (float(row.get("epss", 0)), float(row.get("percentile", 0)))
-        except Exception as e:
-            print(f"  EPSS batch failed: {e}", file=sys.stderr)
+            response = get_with_retry(
+                EPSS_URL, params={"cve": ",".join(batch)}, tries=2
+            )
+            for row in response.json().get("data", []):
+                scores[row["cve"]] = (
+                    float(row.get("epss", 0)),
+                    float(row.get("percentile", 0)),
+                )
+        except Exception as exc:
+            print(f"  EPSS batch failed: {exc}", file=sys.stderr)
         time.sleep(1)
     print(f"  EPSS: scored {len(scores)}/{len(ids)}")
     return scores
 
 
-# --------------------------------------------------------------------------- #
-# CISA Vulnrichment (only for CVEs NVD hasn't scored)
-# --------------------------------------------------------------------------- #
-def vulnrich_path(cve_id: str) -> str:
-    _, year, num = cve_id.split("-")
-    return f"{year}/{num[:-3]}xxx/{cve_id}.json"
+def vulnrich_path(cve_id):
+    _, year, number = cve_id.split("-")
+    return f"{year}/{number[:-3]}xxx/{cve_id}.json"
 
 
 def enrich_vulnrichment(records, max_calls):
-    targets = [r for r in records if r["cvss_score"] is None and r["cve_id"].startswith("CVE-")][:max_calls]
+    targets = [
+        r for r in records
+        if r["cvss_score"] is None and r["cve_id"].startswith("CVE-")
+    ][:max_calls]
+
     hit = 0
-    for r in targets:
+    for record in targets:
         try:
-            resp = get_with_retry(f"{VULNRICH_RAW}/{vulnrich_path(r['cve_id'])}", tries=2, backoff=2, ok404=True)
-        except Exception as e:
-            print(f"  Vulnrichment {r['cve_id']}: {e}", file=sys.stderr)
+            response = get_with_retry(
+                f"{VULNRICH_RAW}/{vulnrich_path(record['cve_id'])}",
+                tries=2,
+                backoff=2,
+                ok404=True,
+            )
+        except Exception as exc:
+            print(f"  Vulnrichment {record['cve_id']}: {exc}", file=sys.stderr)
             continue
-        if resp is None:
+        if response is None:
             continue
-        doc = resp.json()
+
+        doc = response.json()
         adps = doc.get("containers", {}).get("adp", [])
         for adp in adps:
-            for m in adp.get("metrics", []):
-                for key, ver in (("cvssV4_0", "4.0"), ("cvssV3_1", "3.1"), ("cvssV3_0", "3.0")):
-                    c = m.get(key)
-                    if c and c.get("baseScore") is not None and r["cvss_score"] is None:
-                        r["cvss_score"] = c["baseScore"]
-                        r["cvss_severity"] = (c.get("baseSeverity") or severity_from_score(c["baseScore"])).upper()
-                        r["cvss_vector"] = c.get("vectorString", "")
-                        r["cvss_version"] = ver
-                        r["cvss_source"] = "CISA-ADP"
-                other = m.get("other", {})
+            for metric in adp.get("metrics", []):
+                for key, version in (
+                    ("cvssV4_0", "4.0"),
+                    ("cvssV3_1", "3.1"),
+                    ("cvssV3_0", "3.0"),
+                ):
+                    cv = metric.get(key)
+                    if cv and cv.get("baseScore") is not None and record["cvss_score"] is None:
+                        record["cvss_score"] = cv["baseScore"]
+                        record["cvss_severity"] = (
+                            cv.get("baseSeverity")
+                            or severity_from_score(cv["baseScore"])
+                        ).upper()
+                        record["cvss_vector"] = cv.get("vectorString", "")
+                        record["cvss_version"] = version
+                        record["cvss_source"] = "CISA-ADP"
+
+                other = metric.get("other", {})
                 if other.get("type") == "ssvc":
-                    opts = {k: v for o in other.get("content", {}).get("options", []) for k, v in o.items()}
-                    r["ssvc_exploitation"] = opts.get("Exploitation", "")
-                    r["ssvc_automatable"] = opts.get("Automatable", "")
-            if not r["cwe"]:
-                cwes = {d.get("cweId") for pt in adp.get("problemTypes", []) for d in pt.get("descriptions", []) if d.get("cweId")}
-                r["cwe"] = ", ".join(sorted(cwes))
-            if not r["vendor_product"]:
-                aff = adp.get("affected", [])
-                r["vendor_product"] = ", ".join(sorted({f"{a.get('vendor','').lower()}:{a.get('product','').lower()}" for a in aff if a.get("vendor")})[:10])
+                    options = {
+                        k: v
+                        for option in other.get("content", {}).get("options", [])
+                        for k, v in option.items()
+                    }
+                    record["ssvc_exploitation"] = options.get("Exploitation", "")
+                    record["ssvc_automatable"] = options.get("Automatable", "")
+
+            if not record["cwe"]:
+                cwes = {
+                    d.get("cweId")
+                    for pt in adp.get("problemTypes", [])
+                    for d in pt.get("descriptions", [])
+                    if d.get("cweId")
+                }
+                record["cwe"] = ", ".join(sorted(cwes))
+
+            if not record["vendor_product"]:
+                affected = adp.get("affected", [])
+                record["vendor_product"] = ", ".join(
+                    sorted(
+                        {
+                            f"{a.get('vendor', '').lower()}:{a.get('product', '').lower()}"
+                            for a in affected
+                            if a.get("vendor")
+                        }
+                    )[:10]
+                )
+
         if adps:
-            r["sources"].append("Vulnrichment")
+            record["sources"].append("Vulnrichment")
             hit += 1
         time.sleep(0.3)
+
     print(f"  Vulnrichment: enriched {hit}/{len(targets)} unscored CVEs")
 
 
-# --------------------------------------------------------------------------- #
-# GitHub Security Advisories
-# --------------------------------------------------------------------------- #
-def fetch_ghsa(start: datetime, end: datetime):
+def fetch_ghsa(start, end):
     token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
-    headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
     if token:
         headers["Authorization"] = f"Bearer {token}"
+
     out = []
     for field in ("published", "updated"):
-        params = {field: f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}..{end.strftime('%Y-%m-%dT%H:%M:%SZ')}",
-                  "type": "reviewed", "per_page": 100}
+        params = {
+            field: f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}..{end.strftime('%Y-%m-%dT%H:%M:%SZ')}",
+            "type": "reviewed",
+            "per_page": 100,
+        }
         url = GHSA_URL
         while url:
-            r = get_with_retry(url, params=params, headers=headers, tries=3)
-            out.extend(r.json())
-            url = r.links.get("next", {}).get("url")
+            response = get_with_retry(url, params=params, headers=headers, tries=3)
+            out.extend(response.json())
+            url = response.links.get("next", {}).get("url")
             params = None
             time.sleep(0.5)
-    uniq = {a["ghsa_id"]: a for a in out}
-    print(f"  GHSA: {len(uniq)} reviewed advisories")
-    return list(uniq.values())
+
+    unique = {a["ghsa_id"]: a for a in out}
+    print(f"  GHSA: {len(unique)} reviewed advisories")
+    return list(unique.values())
 
 
-def merge_ghsa(records_by_id, advisories, start_iso):
-    for a in advisories:
-        cve = a.get("cve_id")
-        key = cve or a["ghsa_id"]
-        r = records_by_id.get(key)
-        if r is None:
-            r = blank_record(key)
-            r["published"] = a.get("published", "")
-            r["last_modified"] = a.get("updated", "")
-            r["status"] = "GHSA"
-            r["description"] = a.get("description") or a.get("summary", "")
-            r["reason"] = "New" if (a.get("published", "") >= start_iso) else "Updated"
-            records_by_id[key] = r
-        r["sources"].append("GHSA")
-        r["aliases"] = sorted(set(r["aliases"]) | {a["ghsa_id"]})
-        r["advisory_url"] = a.get("html_url", "")
-        pk = sorted({f"{v['package']['ecosystem']}:{v['package']['name']}" for v in a.get("vulnerabilities", []) if v.get("package")})
-        fixed = sorted({v.get("first_patched_version") for v in a.get("vulnerabilities", []) if v.get("first_patched_version")})
-        if pk:
-            r["ecosystem_package"] = ", ".join(pk[:6])
-        if fixed:
-            r["patched_version"] = ", ".join(fixed[:6])
-        if r["cvss_score"] is None:
-            sevs = a.get("cvss_severities") or {}
-            cv = sevs.get("cvss_v4") or sevs.get("cvss_v3") or a.get("cvss") or {}
-            if cv.get("score"):
-                r["cvss_score"] = cv["score"]
-                r["cvss_vector"] = cv.get("vector_string", "") or ""
-                r["cvss_version"] = "4.0" if "CVSS:4" in r["cvss_vector"] else "3.1"
-                r["cvss_severity"] = (a.get("severity") or severity_from_score(cv["score"])).upper()
-                r["cvss_source"] = "GHSA"
-        if not r["cwe"]:
-            r["cwe"] = ", ".join(c["cwe_id"] for c in (a.get("cwes") or [])[:5])
+def apply_ghsa(record, advisory):
+    record["sources"].append("GHSA")
+    record["aliases"] = sorted(set(record["aliases"]) | {advisory["ghsa_id"]})
+    record["advisory_url"] = advisory.get("html_url", "")
+
+    packages = sorted(
+        {
+            f"{v['package']['ecosystem']}:{v['package']['name']}"
+            for v in advisory.get("vulnerabilities", [])
+            if v.get("package")
+        }
+    )
+    fixed = sorted(
+        {
+            v.get("first_patched_version")
+            for v in advisory.get("vulnerabilities", [])
+            if v.get("first_patched_version")
+        }
+    )
+    if packages:
+        record["ecosystem_package"] = ", ".join(packages[:6])
+    if fixed:
+        record["patched_version"] = ", ".join(fixed[:6])
+
+    if record["cvss_score"] is None:
+        severities = advisory.get("cvss_severities") or {}
+        cv = severities.get("cvss_v4") or severities.get("cvss_v3") or advisory.get("cvss") or {}
+        if cv.get("score"):
+            record["cvss_score"] = cv["score"]
+            record["cvss_vector"] = cv.get("vector_string", "") or ""
+            record["cvss_version"] = "4.0" if "CVSS:4" in record["cvss_vector"] else "3.1"
+            record["cvss_severity"] = (
+                advisory.get("severity") or severity_from_score(cv["score"])
+            ).upper()
+            record["cvss_source"] = "GHSA"
+
+    if not record["cwe"]:
+        record["cwe"] = ", ".join(
+            c["cwe_id"] for c in (advisory.get("cwes") or [])[:5]
+        )
 
 
-# --------------------------------------------------------------------------- #
-# OSV.dev (ecosystem dumps; filter to window)
-# --------------------------------------------------------------------------- #
-def fetch_osv(ecosystems, start: datetime, end: datetime):
-    """Include an OSV entry only if it was PUBLISHED in the window.
+def ghsa_changed(previous, current):
+    if not previous:
+        return ""
 
-    OSV periodically re-exports its whole corpus, which bumps every entry's
-    'modified' timestamp. Filtering on 'modified' therefore produces thousands
-    of stale rows on those days. 'published' is stable, so new advisories only.
-    Entries with no 'published' field fall back to 'modified'.
-    """
+    if previous.get("patched_version") != current.get("patched_version") and current.get("patched_version"):
+        return "Fix/version updated"
+
+    if previous.get("cvss_score") != current.get("cvss_score"):
+        return "CVSS changed"
+
+    if previous.get("cvss_severity") != current.get("cvss_severity"):
+        return "Severity changed"
+
+    return ""
+
+
+def merge_ghsa(records_by_id, advisories, start_iso, previous):
+    for advisory in advisories:
+        cve = advisory.get("cve_id")
+        key = cve or advisory["ghsa_id"]
+        published = advisory.get("published", "")
+        is_new = published >= start_iso
+
+        if key in records_by_id:
+            record = records_by_id[key]
+            old = previous.get(key)
+            before = dict(record)
+            apply_ghsa(record, advisory)
+            if not is_new and record.get("reason") != "New":
+                change = ghsa_changed(old, record)
+                if change:
+                    record["reason"] = f"Updated - {change}"
+            continue
+
+        record = blank_record(key)
+        record["published"] = published
+        record["last_modified"] = advisory.get("updated", "")
+        record["status"] = "GHSA"
+        record["description"] = advisory.get("description") or advisory.get("summary", "")
+        apply_ghsa(record, advisory)
+
+        if is_new:
+            record["reason"] = "New"
+            records_by_id[key] = record
+        else:
+            change = ghsa_changed(previous.get(key), record)
+            if change:
+                record["reason"] = f"Updated - {change}"
+                records_by_id[key] = record
+
+
+def fetch_osv(ecosystems, start, end):
+    """OSV is intentionally bucketed by published date, not modified date."""
     entries = []
-    lo, hi = start.strftime("%Y-%m-%dT%H:%M:%S"), end.strftime("%Y-%m-%dT%H:%M:%S")
-    for eco in ecosystems:
-        url = f"{OSV_BUCKET}/{eco}/all.zip"
+    lo = start.strftime("%Y-%m-%dT%H:%M:%S")
+    hi = end.strftime("%Y-%m-%dT%H:%M:%S")
+
+    for ecosystem in ecosystems:
+        url = f"{OSV_BUCKET}/{ecosystem}/all.zip"
         try:
-            r = get_with_retry(url, tries=2, ok404=True)
-        except Exception as e:
-            print(f"  OSV {eco}: {e}", file=sys.stderr)
+            response = get_with_retry(url, tries=2, ok404=True)
+        except Exception as exc:
+            print(f"  OSV {ecosystem}: {exc}", file=sys.stderr)
             continue
-        if r is None:
-            print(f"  OSV {eco}: no dump found (check ecosystem name)", file=sys.stderr)
+        if response is None:
+            print(f"  OSV {ecosystem}: no dump found", file=sys.stderr)
             continue
-        n = 0
-        with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-            for name in z.namelist():
+
+        count = 0
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            for name in archive.namelist():
                 if not name.endswith(".json"):
                     continue
                 try:
-                    v = json.loads(z.read(name))
+                    vulnerability = json.loads(archive.read(name))
                 except Exception:
                     continue
-                stamp = (v.get("published") or v.get("modified") or "")[:19]
-                if lo <= stamp <= hi:
-                    v["_ecosystem"] = eco
-                    entries.append(v)
-                    n += 1
-        print(f"  OSV {eco}: {n} entries published in window")
+
+                stamp = (vulnerability.get("published") or vulnerability.get("modified") or "")[:19]
+                if lo <= stamp < hi:
+                    vulnerability["_ecosystem"] = ecosystem
+                    entries.append(vulnerability)
+                    count += 1
+
+        print(f"  OSV {ecosystem}: {count} entries published in window")
+
     return entries
 
 
 def merge_osv(records_by_id, entries, start_iso):
-    for v in entries:
-        ids = [v["id"]] + v.get("aliases", [])
+    for vulnerability in entries:
+        ids = [vulnerability["id"]] + vulnerability.get("aliases", [])
         cve = next((i for i in ids if i.startswith("CVE-")), None)
         ghsa = next((i for i in ids if i.startswith("GHSA-")), None)
-        key = cve or ghsa or v["id"]
-        r = records_by_id.get(key)
-        if r is None and ghsa and ghsa in records_by_id:
-            r = records_by_id[ghsa]
-        if r is None:
-            r = blank_record(key)
-            r["published"] = v.get("published", "")
-            r["last_modified"] = v.get("modified", "")
-            r["status"] = "OSV"
-            r["description"] = v.get("details") or v.get("summary", "")
-            r["reason"] = "New" if (v.get("published") or "") >= start_iso else "Updated"
-            records_by_id[key] = r
-        r["sources"].append("OSV")
-        r["aliases"] = sorted(set(r["aliases"]) | {i for i in ids if i != r["cve_id"]})
-        if not r["advisory_url"]:
-            r["advisory_url"] = f"https://osv.dev/vulnerability/{v['id']}"
-        pk, fixed = set(), set()
-        for a in v.get("affected", []):
-            p = a.get("package", {})
-            if p.get("name"):
-                pk.add(f"{p.get('ecosystem', v['_ecosystem'])}:{p['name']}")
-            for rng in a.get("ranges", []):
-                for ev in rng.get("events", []):
-                    if ev.get("fixed"):
-                        fixed.add(ev["fixed"])
-        if pk and not r["ecosystem_package"]:
-            r["ecosystem_package"] = ", ".join(sorted(pk)[:6])
-        if fixed and not r["patched_version"]:
-            r["patched_version"] = ", ".join(sorted(fixed)[:6])
-        if r["cvss_score"] is None and not r["cvss_vector"]:
-            for sev in v.get("severity", []):
-                if str(sev.get("type", "")).startswith("CVSS") and sev.get("score"):
-                    r["cvss_vector"] = sev["score"]
-                    r["cvss_severity"] = ((v.get("database_specific") or {}).get("severity") or "").upper()
-                    r["cvss_source"] = "OSV"
+        key = cve or ghsa or vulnerability["id"]
+
+        record = records_by_id.get(key)
+        if record is None and ghsa and ghsa in records_by_id:
+            record = records_by_id[ghsa]
+
+        if record is None:
+            record = blank_record(key)
+            record["published"] = vulnerability.get("published", "")
+            record["last_modified"] = vulnerability.get("modified", "")
+            record["status"] = "OSV"
+            record["description"] = vulnerability.get("details") or vulnerability.get("summary", "")
+            record["reason"] = "New"
+            records_by_id[key] = record
+
+        record["sources"].append("OSV")
+        record["aliases"] = sorted(set(record["aliases"]) | {i for i in ids if i != record["cve_id"]})
+        if not record["advisory_url"]:
+            record["advisory_url"] = f"https://osv.dev/vulnerability/{vulnerability['id']}"
+
+        packages, fixed = set(), set()
+        for affected in vulnerability.get("affected", []):
+            package = affected.get("package", {})
+            if package.get("name"):
+                packages.add(f"{package.get('ecosystem', vulnerability['_ecosystem'])}:{package['name']}")
+            for rng in affected.get("ranges", []):
+                for event in rng.get("events", []):
+                    if event.get("fixed"):
+                        fixed.add(event["fixed"])
+
+        if packages and not record["ecosystem_package"]:
+            record["ecosystem_package"] = ", ".join(sorted(packages)[:6])
+        if fixed and not record["patched_version"]:
+            record["patched_version"] = ", ".join(sorted(fixed)[:6])
+
+        if record["cvss_score"] is None and not record["cvss_vector"]:
+            for severity in vulnerability.get("severity", []):
+                if str(severity.get("type", "")).startswith("CVSS") and severity.get("score"):
+                    record["cvss_vector"] = severity["score"]
+                    record["cvss_severity"] = (
+                        (vulnerability.get("database_specific") or {}).get("severity") or ""
+                    ).upper()
+                    record["cvss_source"] = "OSV"
                     break
 
 
-# --------------------------------------------------------------------------- #
-# Main
-# --------------------------------------------------------------------------- #
+def priority_for(record):
+    score = record["cvss_score"] or 0
+    epss = record["epss"] or 0
+
+    if record["kev"] or epss >= 0.5 or record["ssvc_exploitation"] == "active":
+        return "P1 - Act now"
+    if score >= 9.0 or (epss >= 0.1 and score >= 7.0) or record["ssvc_exploitation"] == "poc":
+        return "P2 - High"
+    if score >= 7.0:
+        return "P3 - Medium"
+    return "P4 - Low / Unscored"
+
+
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--hours", type=int, default=24)
-    ap.add_argument("--date", help="YYYY-MM-DD: fetch that calendar day (UTC)")
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--hours", type=int, default=24)
+    parser.add_argument("--date", help="YYYY-MM-DD: fetch that UTC calendar day")
+    args = parser.parse_args()
 
     if args.date:
         start = datetime.strptime(args.date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
@@ -455,138 +633,178 @@ def main():
         end = datetime.now(timezone.utc).replace(microsecond=0)
         start = end - timedelta(hours=args.hours)
         report_date = end.strftime("%Y-%m-%d")
+
     start_iso = start.strftime("%Y-%m-%dT%H:%M:%S")
     print(f"Window: {start.isoformat()} -> {end.isoformat()}")
 
     cfg = load_config()
     api_key = (os.getenv("NVD_API_KEY") or "").strip()
-    print(f"  NVD API key: {'yes (' + api_key[:4] + '...)' if api_key else 'no - public rate limit'}")
+    previous = load_previous_snapshot(report_date)
 
-    # ---- 1. NVD: new + meaningful updates -------------------------------- #
-    print("Fetching NVD...")
+    print(f"  NVD API key: {'yes' if api_key else 'no - public rate limit'}")
+
+    # ------------------------------------------------------------------
+    # 1. NVD NEW: published date is the daily bucket.
+    # ------------------------------------------------------------------
     records_by_id = {}
     for item in fetch_nvd(start, end, "pub", api_key):
-        r = normalise_nvd(item)
-        r["reason"] = "New"
-        records_by_id[r["cve_id"]] = r
+        record = normalise_nvd(item)
+        record["reason"] = "New"
+        records_by_id[record["cve_id"]] = record
+
     n_new = len(records_by_id)
+    n_updated = 0
 
-    n_upd = 0
+    # ------------------------------------------------------------------
+    # 2. NVD UPDATES: modified date is used ONLY to discover candidates.
+    #    An older CVE is added only if a meaningful security field changed.
+    # ------------------------------------------------------------------
     if cfg["include_updated"]:
-        # Only surface a CVE as "Updated" if it crossed from unscored to scored
-        # since we last saw it. We check the most recent prior snapshot: a CVE
-        # we already recorded WITH a score is not news; one we recorded WITHOUT
-        # a score (or never saw) that now has one is. This stops the flood on
-        # days when NVD re-processes its backlog in bulk.
-        prior_scored, prior_seen = set(), set()
-        prev = sorted(p for p in DATA_DIR.glob("*.json") if p.stem < report_date)
-        if prev:
-            try:
-                with open(prev[-1]) as f:
-                    for rec in json.load(f).get("records", []):
-                        prior_seen.add(rec["cve_id"])
-                        if rec.get("cvss_score") is not None:
-                            prior_scored.add(rec["cve_id"])
-            except Exception as e:
-                print(f"  (couldn't read prior snapshot for diff: {e})", file=sys.stderr)
-
         time.sleep(1 if api_key else 7)
-        cutoff = (end - timedelta(days=cfg["modified_lookback_days"])).strftime("%Y-%m-%dT%H:%M:%S")
+        cutoff = (
+            end - timedelta(days=cfg["modified_lookback_days"])
+        ).strftime("%Y-%m-%dT%H:%M:%S")
+
         for item in fetch_nvd(start, end, "lastMod", api_key):
             cid = item["cve"]["id"]
+
+            # Already present because it was genuinely published today.
             if cid in records_by_id:
                 continue
-            if cid in prior_scored:
-                continue  # we already reported it with a score - not news
-            pub = item["cve"].get("published", "")[:19]
-            if pub < cutoff:
-                continue  # old CVE, metadata churn - ignore
-            r = normalise_nvd(item)
-            if r["cvss_score"] is None:
-                continue  # still unscored, nothing new to tell the team
-            r["reason"] = "Newly scored"
-            records_by_id[cid] = r
-            n_upd += 1
-    print(f"  {n_new} new, {n_upd} newly-scored CVEs")
 
-    # ---- 2. KEV ---------------------------------------------------------- #
+            published = item["cve"].get("published", "")[:19]
+            if not published or published < cutoff:
+                continue
+
+            current = normalise_nvd(item)
+            old = previous.get(cid)
+            change = meaningful_nvd_change(old, current)
+
+            if not change:
+                continue
+
+            current["reason"] = f"Updated - {change}"
+            records_by_id[cid] = current
+            n_updated += 1
+
+    print(f"  NVD: {n_new} new, {n_updated} meaningful updates")
+
+    # ------------------------------------------------------------------
+    # 3. KEV
+    # ------------------------------------------------------------------
     print("Fetching CISA KEV...")
     kev = fetch_kev()
-    for cve_id, k in kev.items():
-        if k.get("dateAdded", "") >= start.strftime("%Y-%m-%d") and cve_id not in records_by_id:
-            r = blank_record(cve_id)
-            r["status"] = "KEV"
-            r["reason"] = "Added to KEV"
-            r["description"] = k.get("shortDescription", "")
-            r["vendor_product"] = f"{k.get('vendorProject','')}:{k.get('product','')}".lower()
-            records_by_id[cve_id] = r
-    for r in records_by_id.values():
-        k = kev.get(r["cve_id"])
-        if k:
-            r["sources"].append("KEV")
-            r["kev"] = True
-            r["kev_date_added"] = k.get("dateAdded", "")
-            r["kev_due_date"] = k.get("dueDate", "")
-            r["kev_required_action"] = k.get("requiredAction", "")
-            r["kev_ransomware"] = k.get("knownRansomwareCampaignUse", "") == "Known"
-            if not r["vendor_product"]:
-                r["vendor_product"] = f"{k.get('vendorProject','')}:{k.get('product','')}".lower()
 
-    # ---- 3. Vulnrichment for unscored ------------------------------------ #
+    for cve_id, item in kev.items():
+        if (
+            item.get("dateAdded", "") >= start.strftime("%Y-%m-%d")
+            and cve_id not in records_by_id
+        ):
+            record = blank_record(cve_id)
+            record["reason"] = "Added to KEV"
+            record["status"] = "KEV"
+            record["description"] = item.get("shortDescription", "")
+            record["vendor_product"] = (
+                f"{item.get('vendorProject', '')}:{item.get('product', '')}".lower()
+            )
+            records_by_id[cve_id] = record
+
+    for record in records_by_id.values():
+        item = kev.get(record["cve_id"])
+        if item:
+            record["sources"].append("KEV")
+            record["kev"] = True
+            record["kev_date_added"] = item.get("dateAdded", "")
+            record["kev_due_date"] = item.get("dueDate", "")
+            record["kev_required_action"] = item.get("requiredAction", "")
+            record["kev_ransomware"] = (
+                item.get("knownRansomwareCampaignUse", "") == "Known"
+            )
+            if not record["vendor_product"]:
+                record["vendor_product"] = (
+                    f"{item.get('vendorProject', '')}:{item.get('product', '')}".lower()
+                )
+
+    # ------------------------------------------------------------------
+    # 4. Vulnrichment
+    # ------------------------------------------------------------------
     if cfg["sources"]["vulnrichment"]:
-        print("Fetching CISA Vulnrichment for unscored CVEs...")
+        print("Fetching CISA Vulnrichment...")
         try:
-            enrich_vulnrichment(list(records_by_id.values()), cfg["max_enrich_calls"])
-        except Exception as e:
-            print(f"  Vulnrichment failed (continuing): {e}", file=sys.stderr)
+            enrich_vulnrichment(
+                list(records_by_id.values()),
+                cfg["max_enrich_calls"],
+            )
+        except Exception as exc:
+            print(f"  Vulnrichment failed: {exc}", file=sys.stderr)
 
-    # ---- 4. GHSA --------------------------------------------------------- #
+    # ------------------------------------------------------------------
+    # 5. GHSA
+    # ------------------------------------------------------------------
     if cfg["sources"]["ghsa"]:
         print("Fetching GitHub Security Advisories...")
         try:
-            merge_ghsa(records_by_id, fetch_ghsa(start, end), start_iso)
-        except Exception as e:
-            print(f"  GHSA failed (continuing): {e}", file=sys.stderr)
+            merge_ghsa(
+                records_by_id,
+                fetch_ghsa(start, end),
+                start_iso,
+                previous,
+            )
+        except Exception as exc:
+            print(f"  GHSA failed: {exc}", file=sys.stderr)
 
-    # ---- 5. OSV ---------------------------------------------------------- #
+    # ------------------------------------------------------------------
+    # 6. OSV: published date only
+    # ------------------------------------------------------------------
     if cfg["sources"]["osv"] and cfg["osv_ecosystems"]:
-        print("Fetching OSV.dev dumps...")
+        print("Fetching OSV.dev...")
         try:
-            merge_osv(records_by_id, fetch_osv(cfg["osv_ecosystems"], start, end), start_iso)
-        except Exception as e:
-            print(f"  OSV failed (continuing): {e}", file=sys.stderr)
+            merge_osv(
+                records_by_id,
+                fetch_osv(cfg["osv_ecosystems"], start, end),
+                start_iso,
+            )
+        except Exception as exc:
+            print(f"  OSV failed: {exc}", file=sys.stderr)
 
     records = list(records_by_id.values())
 
-    # ---- 6. EPSS --------------------------------------------------------- #
+    # ------------------------------------------------------------------
+    # 7. EPSS
+    # ------------------------------------------------------------------
     print("Fetching EPSS...")
     epss = fetch_epss([r["cve_id"] for r in records])
-    for r in records:
-        e = epss.get(r["cve_id"])
-        if e:
-            r["epss"], r["epss_percentile"] = e
+    for record in records:
+        if record["cve_id"] in epss:
+            record["epss"], record["epss_percentile"] = epss[record["cve_id"]]
 
-    # ---- 7. Watchlist + priority ----------------------------------------- #
-    for r in records:
-        r["sources"] = sorted(set(r["sources"]))
-        target = f"{r['vendor_product']} {r['ecosystem_package']}".lower()
+    # ------------------------------------------------------------------
+    # 8. Watchlist + priority
+    # ------------------------------------------------------------------
+    for record in records:
+        record["sources"] = sorted(set(record["sources"]))
+        target = f"{record['vendor_product']} {record['ecosystem_package']}".lower()
         if not target.strip():
-            target = r["description"].lower()  # no CPE yet - fall back to text
-        hits = [k for k in cfg["keywords"] if k in target]
-        r["watchlist_hits"] = ", ".join(hits)
-        r["watchlist_match"] = bool(hits)
-        score = r["cvss_score"] or 0
-        ep = r["epss"] or 0
-        if r["kev"] or ep >= 0.5 or r["ssvc_exploitation"] == "active":
-            r["priority"] = "P1 - Act now"
-        elif score >= 9.0 or (ep >= 0.1 and score >= 7.0) or r["ssvc_exploitation"] == "poc":
-            r["priority"] = "P2 - High"
-        elif score >= 7.0:
-            r["priority"] = "P3 - Medium"
-        else:
-            r["priority"] = "P4 - Low / Unscored"
+            target = record["description"].lower()
 
-    records.sort(key=lambda r: (not r["kev"], r["priority"], -(r["cvss_score"] or 0), r["cve_id"]))
+        hits = [k for k in cfg["keywords"] if k in target]
+        record["watchlist_hits"] = ", ".join(hits)
+        record["watchlist_match"] = bool(hits)
+        record["priority"] = priority_for(record)
+
+    # New first, then updated/KEV, with highest priority first.
+    reason_rank = {
+        "New": 0,
+        "Added to KEV": 1,
+    }
+    records.sort(
+        key=lambda r: (
+            reason_rank.get(r["reason"].split(" - ")[0], 2),
+            r["priority"],
+            -(r["cvss_score"] or 0),
+            r["cve_id"],
+        )
+    )
 
     snapshot = {
         "report_date": report_date,
@@ -596,7 +814,8 @@ def main():
         "counts": {
             "total": len(records),
             "new": sum(r["reason"] == "New" for r in records),
-            "updated": sum(r["reason"] != "New" for r in records),
+            "updated": sum(r["reason"].startswith("Updated") for r in records),
+            "kev_added": sum(r["reason"] == "Added to KEV" for r in records),
             "kev": sum(r["kev"] for r in records),
             "critical": sum(r["cvss_severity"] == "CRITICAL" for r in records),
             "high": sum(r["cvss_severity"] == "HIGH" for r in records),
@@ -611,11 +830,14 @@ def main():
         "sources_enabled": [s for s, on in cfg["sources"].items() if on] + ["nvd", "kev", "epss"],
         "records": records,
     }
+
     DATA_DIR.mkdir(exist_ok=True)
-    out = DATA_DIR / f"{report_date}.json"
-    with open(out, "w") as f:
+    output = DATA_DIR / f"{report_date}.json"
+    with open(output, "w", encoding="utf-8") as f:
         json.dump(snapshot, f, indent=1)
-    print(f"Wrote {out}\n  {snapshot['counts']}")
+
+    print(f"Wrote {output}")
+    print(snapshot["counts"])
 
 
 if __name__ == "__main__":
