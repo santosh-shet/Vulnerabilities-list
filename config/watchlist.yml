@@ -55,14 +55,17 @@ keywords:
 # ---------------------------------------------------------------------------
 # What counts as a row
 # ---------------------------------------------------------------------------
-# "New"     = published in the 24h window (typically 100-150/day).
-# "Updated" = published within modified_lookback_days AND, in the window,
-#             received its first CVSS score (or was added to KEV). This is how
-#             yesterday's "Unscored" items come back once NVD/CISA scores them.
-# Older CVEs that NVD merely re-processed are ignored - that was the source of
-# 3,000-row days.
+# "New"          = published in the 24h window (typically 100-250/day).
+# "Newly scored" = published within modified_lookback_days AND crossed from
+#                  unscored to scored since the PREVIOUS snapshot. The diff
+#                  against yesterday's file means a CVE that merely gets
+#                  re-processed by NVD (same score as before) is NOT shown.
+#                  This is what stops the 3,000-6,000 row days.
+# "Added to KEV" = an older CVE CISA just flagged as exploited.
+#
+# Set include_updated: false if you want ONLY brand-new CVEs each day.
 include_updated: true
-modified_lookback_days: 30
+modified_lookback_days: 21
 
 # ---------------------------------------------------------------------------
 # Sources

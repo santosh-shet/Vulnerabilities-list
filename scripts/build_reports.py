@@ -10,6 +10,7 @@ Usage:
 import argparse
 import html
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -69,17 +70,27 @@ def load_snapshot(date: str | None):
         return json.load(f)
 
 
+# Characters openpyxl/Excel refuse in a cell: control chars except tab/newline/CR
+_ILLEGAL_XLSX = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def clean(s: str) -> str:
+    return _ILLEGAL_XLSX.sub("", s)
+
+
 def fmt(v):
     if v is None:
         return ""
     if isinstance(v, list):
-        return ", ".join(str(x) for x in v)
+        return clean(", ".join(str(x) for x in v))
     if isinstance(v, bool):
         return "Yes" if v else ""
     if isinstance(v, float):
         return round(v, 3)
     if isinstance(v, str) and len(v) > 10 and v[4] == "-" and "T" in v:
         return v[:10]  # ISO datetime -> date
+    if isinstance(v, str):
+        return clean(v)
     return v
 
 

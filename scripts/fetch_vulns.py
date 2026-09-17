@@ -358,6 +358,13 @@ def merge_ghsa(records_by_id, advisories, start_iso):
 # OSV.dev (ecosystem dumps; filter to window)
 # --------------------------------------------------------------------------- #
 def fetch_osv(ecosystems, start: datetime, end: datetime):
+    """Include an OSV entry only if it was PUBLISHED in the window.
+
+    OSV periodically re-exports its whole corpus, which bumps every entry's
+    'modified' timestamp. Filtering on 'modified' therefore produces thousands
+    of stale rows on those days. 'published' is stable, so new advisories only.
+    Entries with no 'published' field fall back to 'modified'.
+    """
     entries = []
     lo, hi = start.strftime("%Y-%m-%dT%H:%M:%S"), end.strftime("%Y-%m-%dT%H:%M:%S")
     for eco in ecosystems:
@@ -379,12 +386,12 @@ def fetch_osv(ecosystems, start: datetime, end: datetime):
                     v = json.loads(z.read(name))
                 except Exception:
                     continue
-                mod = (v.get("modified") or "")[:19]
-                if lo <= mod <= hi:
+                stamp = (v.get("published") or v.get("modified") or "")[:19]
+                if lo <= stamp <= hi:
                     v["_ecosystem"] = eco
                     entries.append(v)
                     n += 1
-        print(f"  OSV {eco}: {n} entries modified in window")
+        print(f"  OSV {eco}: {n} entries published in window")
     return entries
 
 
@@ -466,22 +473,41 @@ def main():
 
     n_upd = 0
     if cfg["include_updated"]:
+        # Only surface a CVE as "Updated" if it crossed from unscored to scored
+        # since we last saw it. We check the most recent prior snapshot: a CVE
+        # we already recorded WITH a score is not news; one we recorded WITHOUT
+        # a score (or never saw) that now has one is. This stops the flood on
+        # days when NVD re-processes its backlog in bulk.
+        prior_scored, prior_seen = set(), set()
+        prev = sorted(p for p in DATA_DIR.glob("*.json") if p.stem < report_date)
+        if prev:
+            try:
+                with open(prev[-1]) as f:
+                    for rec in json.load(f).get("records", []):
+                        prior_seen.add(rec["cve_id"])
+                        if rec.get("cvss_score") is not None:
+                            prior_scored.add(rec["cve_id"])
+            except Exception as e:
+                print(f"  (couldn't read prior snapshot for diff: {e})", file=sys.stderr)
+
         time.sleep(1 if api_key else 7)
         cutoff = (end - timedelta(days=cfg["modified_lookback_days"])).strftime("%Y-%m-%dT%H:%M:%S")
         for item in fetch_nvd(start, end, "lastMod", api_key):
             cid = item["cve"]["id"]
             if cid in records_by_id:
                 continue
+            if cid in prior_scored:
+                continue  # we already reported it with a score - not news
             pub = item["cve"].get("published", "")[:19]
             if pub < cutoff:
                 continue  # old CVE, metadata churn - ignore
             r = normalise_nvd(item)
             if r["cvss_score"] is None:
                 continue  # still unscored, nothing new to tell the team
-            r["reason"] = "Updated"
+            r["reason"] = "Newly scored"
             records_by_id[cid] = r
             n_upd += 1
-    print(f"  {n_new} new, {n_upd} recently-published CVEs updated with a score")
+    print(f"  {n_new} new, {n_upd} newly-scored CVEs")
 
     # ---- 2. KEV ---------------------------------------------------------- #
     print("Fetching CISA KEV...")
