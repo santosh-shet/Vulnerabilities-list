@@ -1,0 +1,162 @@
+[
+ {
+  "date": "2026-09-16",
+  "counts": {
+   "total": 3006,
+   "kev": 6,
+   "critical": 285,
+   "high": 1510,
+   "medium": 814,
+   "low": 128,
+   "unscored": 269,
+   "watchlist": 1596,
+   "new_today": 1856
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-16.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-16.pdf"
+ },
+ {
+  "date": "2026-09-15",
+  "counts": {
+   "total": 2005,
+   "kev": 5,
+   "critical": 226,
+   "high": 1037,
+   "medium": 463,
+   "low": 118,
+   "unscored": 160,
+   "watchlist": 939,
+   "new_today": 1811
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-15.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-15.pdf"
+ },
+ {
+  "date": "2026-09-14",
+  "counts": {
+   "total": 1605,
+   "kev": 7,
+   "critical": 169,
+   "high": 574,
+   "medium": 574,
+   "low": 140,
+   "unscored": 148,
+   "watchlist": 576,
+   "new_today": 1524
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-14.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-14.pdf"
+ },
+ {
+  "date": "2026-09-13",
+  "counts": {
+   "total": 281,
+   "kev": 4,
+   "critical": 40,
+   "high": 130,
+   "medium": 54,
+   "low": 47,
+   "unscored": 10,
+   "watchlist": 171,
+   "new_today": 277
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-13.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-13.pdf"
+ },
+ {
+  "date": "2026-09-12",
+  "counts": {
+   "total": 117,
+   "kev": 8,
+   "critical": 14,
+   "high": 45,
+   "medium": 50,
+   "low": 4,
+   "unscored": 4,
+   "watchlist": 31,
+   "new_today": 109
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-12.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-12.pdf"
+ },
+ {
+  "date": "2026-09-11",
+  "counts": {
+   "total": 1241,
+   "kev": 10,
+   "critical": 168,
+   "high": 536,
+   "medium": 333,
+   "low": 30,
+   "unscored": 174,
+   "watchlist": 717,
+   "new_today": 1177
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-11.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-11.pdf"
+ },
+ {
+  "date": "2026-09-10",
+  "counts": {
+   "total": 1304,
+   "kev": 17,
+   "critical": 175,
+   "high": 603,
+   "medium": 476,
+   "low": 35,
+   "unscored": 14,
+   "watchlist": 540,
+   "new_today": 1083
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-10.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-10.pdf"
+ },
+ {
+  "date": "2026-09-09",
+  "counts": {
+   "total": 2411,
+   "kev": 19,
+   "critical": 293,
+   "high": 1143,
+   "medium": 847,
+   "low": 95,
+   "unscored": 30,
+   "watchlist": 845,
+   "new_today": 1911
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-09.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-09.pdf"
+ },
+ {
+  "date": "2026-09-08",
+  "counts": {
+   "total": 3128,
+   "kev": 22,
+   "critical": 293,
+   "high": 1559,
+   "medium": 1118,
+   "low": 123,
+   "unscored": 34,
+   "watchlist": 1655,
+   "new_today": 2974
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-08.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-08.pdf"
+ },
+ {
+  "date": "2026-09-07",
+  "counts": {
+   "total": 357,
+   "kev": 18,
+   "critical": 36,
+   "high": 98,
+   "medium": 145,
+   "low": 45,
+   "unscored": 33,
+   "watchlist": 88,
+   "new_today": 357
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-07.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-07.pdf"
+ }
+]
