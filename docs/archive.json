@@ -2,15 +2,15 @@
  {
   "date": "2026-09-16",
   "counts": {
-   "total": 2390,
-   "kev": 2,
-   "critical": 228,
-   "high": 1103,
-   "medium": 571,
-   "low": 129,
-   "unscored": 358,
-   "watchlist": 1072,
-   "new_today": 1814
+   "total": 3006,
+   "kev": 6,
+   "critical": 285,
+   "high": 1510,
+   "medium": 814,
+   "low": 128,
+   "unscored": 269,
+   "watchlist": 1596,
+   "new_today": 1856
   },
   "xlsx": "reports/2026/09/vulns-2026-09-16.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-16.pdf"
@@ -18,15 +18,15 @@
  {
   "date": "2026-09-15",
   "counts": {
-   "total": 1877,
-   "kev": 3,
-   "critical": 195,
-   "high": 602,
-   "medium": 592,
-   "low": 182,
-   "unscored": 306,
-   "watchlist": 620,
-   "new_today": 1631
+   "total": 2005,
+   "kev": 5,
+   "critical": 226,
+   "high": 1037,
+   "medium": 463,
+   "low": 118,
+   "unscored": 160,
+   "watchlist": 939,
+   "new_today": 1811
   },
   "xlsx": "reports/2026/09/vulns-2026-09-15.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-15.pdf"
@@ -34,15 +34,15 @@
  {
   "date": "2026-09-14",
   "counts": {
-   "total": 287,
-   "kev": 3,
-   "critical": 8,
-   "high": 72,
-   "medium": 118,
-   "low": 81,
-   "unscored": 8,
-   "watchlist": 44,
-   "new_today": 287
+   "total": 1605,
+   "kev": 7,
+   "critical": 169,
+   "high": 574,
+   "medium": 574,
+   "low": 140,
+   "unscored": 148,
+   "watchlist": 576,
+   "new_today": 1524
   },
   "xlsx": "reports/2026/09/vulns-2026-09-14.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-14.pdf"
@@ -50,15 +50,15 @@
  {
   "date": "2026-09-13",
   "counts": {
-   "total": 407,
-   "kev": 0,
-   "critical": 81,
-   "high": 236,
-   "medium": 47,
-   "low": 20,
-   "unscored": 23,
-   "watchlist": 307,
-   "new_today": 75
+   "total": 281,
+   "kev": 4,
+   "critical": 40,
+   "high": 130,
+   "medium": 54,
+   "low": 47,
+   "unscored": 10,
+   "watchlist": 171,
+   "new_today": 277
   },
   "xlsx": "reports/2026/09/vulns-2026-09-13.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-13.pdf"
@@ -66,15 +66,15 @@
  {
   "date": "2026-09-12",
   "counts": {
-   "total": 1391,
-   "kev": 6,
-   "critical": 115,
-   "high": 402,
-   "medium": 354,
-   "low": 32,
-   "unscored": 488,
-   "watchlist": 784,
-   "new_today": 770
+   "total": 117,
+   "kev": 8,
+   "critical": 14,
+   "high": 45,
+   "medium": 50,
+   "low": 4,
+   "unscored": 4,
+   "watchlist": 31,
+   "new_today": 109
   },
   "xlsx": "reports/2026/09/vulns-2026-09-12.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-12.pdf"
@@ -82,17 +82,81 @@
  {
   "date": "2026-09-11",
   "counts": {
-   "total": 6125,
-   "kev": 19,
-   "critical": 706,
-   "high": 2821,
-   "medium": 2240,
-   "low": 263,
-   "unscored": 90,
-   "watchlist": 2300,
-   "new_today": 6125
+   "total": 1241,
+   "kev": 10,
+   "critical": 168,
+   "high": 536,
+   "medium": 333,
+   "low": 30,
+   "unscored": 174,
+   "watchlist": 717,
+   "new_today": 1177
   },
   "xlsx": "reports/2026/09/vulns-2026-09-11.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-11.pdf"
+ },
+ {
+  "date": "2026-09-10",
+  "counts": {
+   "total": 1304,
+   "kev": 17,
+   "critical": 175,
+   "high": 603,
+   "medium": 476,
+   "low": 35,
+   "unscored": 14,
+   "watchlist": 540,
+   "new_today": 1083
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-10.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-10.pdf"
+ },
+ {
+  "date": "2026-09-09",
+  "counts": {
+   "total": 2411,
+   "kev": 19,
+   "critical": 293,
+   "high": 1143,
+   "medium": 847,
+   "low": 95,
+   "unscored": 30,
+   "watchlist": 845,
+   "new_today": 1911
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-09.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-09.pdf"
+ },
+ {
+  "date": "2026-09-08",
+  "counts": {
+   "total": 3128,
+   "kev": 22,
+   "critical": 293,
+   "high": 1559,
+   "medium": 1118,
+   "low": 123,
+   "unscored": 34,
+   "watchlist": 1655,
+   "new_today": 2974
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-08.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-08.pdf"
+ },
+ {
+  "date": "2026-09-07",
+  "counts": {
+   "total": 357,
+   "kev": 18,
+   "critical": 36,
+   "high": 98,
+   "medium": 145,
+   "low": 45,
+   "unscored": 33,
+   "watchlist": 88,
+   "new_today": 357
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-07.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-07.pdf"
  }
 ]
