@@ -529,6 +529,20 @@ def build_pdf(snapshot, output):
 
 
 def build_dashboard(snapshot, xlsx_rel, pdf_rel, repo_url):
+
+    # Vendor / Product / Package dropdown values.
+    vpp_values = set()
+    for _item in snapshot.get("items", snapshot.get("vulnerabilities", [])):
+        if not isinstance(_item, dict):
+            continue
+        for _key in ("vendor_product", "ecosystem_package", "package", "product", "vendor"):
+            _value = _item.get(_key)
+            if _value:
+                vpp_values.add(str(_value).strip())
+    vpp_options = "".join(
+        f"<option value='{html.escape(v)}'>{html.escape(v)}</option>"
+        for v in sorted(vpp_values, key=str.casefold)
+    )
     DOCS_DIR.mkdir(exist_ok=True)
     archive_path = DOCS_DIR / "archive.json"
 
@@ -581,12 +595,12 @@ def build_dashboard(snapshot, xlsx_rel, pdf_rel, repo_url):
 
     history_rows = "".join(
         f"<tr><td>{a['date']}</td>"
-        f"<td class='num'>{a['counts']['total']}</td>"
+        f"<td class='num'>{a.get('counts', {}).get('total', 0)}</td>"
         f"<td class='num'>{a['counts'].get('new', 0)}</td>"
         f"<td class='num'>{a['counts'].get('updated', 0)}</td>"
-        f"<td class='num'>{a['counts'].get('kev_added', 0)}</td>"
-        f"<td class='num'>{a['counts']['critical']}</td>"
-        f"<td class='num'>{a['counts']['high']}</td>"
+        f"<td class='num'>{a.get('counts', {}).get('kev_added', 0)}</td>"
+        f"<td class='num'>{a.get('counts', {}).get('critical', 0)}</td>"
+        f"<td class='num'>{a.get('counts', {}).get('high', 0)}</td>"
         f"<td><a href='{blob}{a['xlsx']}'>Excel</a> &middot; "
         f"<a href='{blob}{a['pdf']}'>PDF</a></td></tr>"
         for a in archive
@@ -630,6 +644,8 @@ td small{{color:#2e7d32}}
 details{{margin-top:24px}}
 summary{{cursor:pointer;font-weight:600}}
 footer{{color:var(--muted);font-size:12px;margin-top:24px}}
+
+.filter-group select#vppFilter { min-width: 240px; max-width: 420px; }
 </style>
 </head>
 <body>
@@ -678,6 +694,14 @@ window {snapshot['window_start'][:16]} to {snapshot['window_end'][:16]} UTC
 <span id="count" class="sub" style="margin:0"></span>
 </div>
 
+
+<div class="filter-group">
+  <label for="vppFilter">Vendor / Product / Package</label>
+  <select id="vppFilter" onchange="applyFilters()">
+    <option value="">All</option>
+    
+  </select>
+</div>
 <table id="t">
 <thead>
 <tr>
@@ -765,6 +789,18 @@ document.querySelectorAll('#t th').forEach((th,i)=>th.addEventListener('click',(
   }}).forEach(r=>tb.appendChild(r));
 }}));
 </script>
+
+<script>
+function applyFilters() {
+  const vpp = (document.getElementById('vppFilter') || {}).value || '';
+  document.querySelectorAll('table tbody tr').forEach(function(row) {
+    const haystack = (row.dataset.vendorProductPackage || row.innerText || '').toLowerCase();
+    const matchesVpp = !vpp || haystack.includes(vpp.toLowerCase());
+    row.style.display = matchesVpp ? '' : 'none';
+  });
+}
+</script>
+
 </body>
 </html>"""
 
