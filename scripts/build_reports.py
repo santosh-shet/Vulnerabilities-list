@@ -325,7 +325,7 @@ def build_dashboard(snap, xlsx_rel: str, pdf_rel: str, repo_url: str):
     archive = [a for a in archive if a["date"] != snap["report_date"]]
     archive.append({"date": snap["report_date"], "counts": snap["counts"], "xlsx": xlsx_rel, "pdf": pdf_rel})
     archive.sort(key=lambda a: a["date"], reverse=True)
-    archive = archive[:60]  # rolling 2-month window
+    archive = archive[:10]  # rolling 10-days window
     with open(archive_path, "w") as f:
         json.dump(archive, f, indent=1)
 

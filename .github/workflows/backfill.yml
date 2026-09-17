@@ -1,11 +1,11 @@
-name: Backfill last 60 days
+name: Backfill last 10 days
 
 on:
   workflow_dispatch:
     inputs:
       days:
         description: "How many days back to backfill"
-        default: "60"
+        default: "10"
 
 permissions:
   contents: write
