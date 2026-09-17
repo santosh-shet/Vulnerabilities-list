@@ -1,13 +1,15 @@
 # Daily vulnerability report
 
-Pulls newly published and modified CVEs from **NVD**, flags anything in the
-**CISA KEV** catalogue (actively exploited), adds **EPSS** exploit-probability
-scores, matches against a **watchlist** of your vendors/products, and every day:
+Pulls **newly published CVEs from NVD**, fills scoring gaps from **CISA
+Vulnrichment**, flags anything in **CISA KEV** (actively exploited), adds **EPSS**
+exploit-probability scores, merges package advisories from **GitHub Security
+Advisories** and **OSV.dev**, matches against a **watchlist** of your
+vendors/products, and every day:
 
 1. stores a JSON snapshot in `data/YYYY-MM-DD.json` (so history and diffs live in Git)
 2. builds `reports/YYYY/MM/vulns-YYYY-MM-DD.xlsx` and `.pdf`
 3. publishes a filterable dashboard to GitHub Pages (`docs/index.html`)
-4. keeps 90 days of history downloadable from the dashboard
+4. keeps 10 days of history downloadable from the dashboard
 
 Everything runs in GitHub Actions - no servers, no email setup. Share the
 dashboard URL with your team; it refreshes automatically every morning.
@@ -24,7 +26,7 @@ dashboard URL with your team; it refreshes automatically every morning.
 
 4. **Edit `config/watchlist.yml`** with the vendors and technologies in your estate.
 5. **Run it once manually**: Actions > *Daily vulnerability report* > *Run workflow*.
-   Use `hours: 72` for the first run to get a meaningful set.
+   Or run **Backfill last N days** (defaults to 10) to populate history in one go.
 
 6. **Share the dashboard URL**: `https://<org-or-user>.github.io/<repo>/`
    (shown under Settings > Pages once the first run completes).
@@ -33,12 +35,35 @@ From then on it runs at **06:00 UTC** every day (07:00 CET / 08:00 CEST), so the
 data is fresh well before 10:00 CET. Change the cron in
 `.github/workflows/daily-vulns.yml` if needed - remember cron is always UTC.
 
+## What is a "row"?
+
+| Reason | Meaning |
+|---|---|
+| **New** | Published in the 24-hour window. Typically 100-150 CVEs plus 20-60 package advisories. |
+| **Updated** | Published in the last 30 days and, in the window, received its first CVSS score. This is how yesterday's "Unscored" items come back once analysed. |
+| **Added to KEV** | An older CVE CISA just confirmed as exploited. |
+
+Older CVEs that NVD merely re-processed (CPE tweaks, re-scoring, bulk enrichment)
+are **not** included - that was the cause of 3,000-row days. Tune with
+`include_updated` and `modified_lookback_days` in `config/watchlist.yml`.
+
+## Sources
+
+| Source | What it adds | Toggle |
+|---|---|---|
+| NVD 2.0 | CVE, description, NVD CVSS, CPE vendor/product | always |
+| CISA KEV | Exploited flag, due date, ransomware use | always |
+| FIRST EPSS | Exploit probability (0-1) | always |
+| CISA Vulnrichment | CVSS + SSVC (exploitation: none/poc/active) for CVEs NVD hasn't scored | `sources.vulnrichment` |
+| GitHub Security Advisories | Package ecosystem, name, first fixed version; GHSA-only advisories become rows | `sources.ghsa` |
+| OSV.dev | Same for the ecosystems in `osv_ecosystems`; PYSEC/GO/etc. IDs become rows | `sources.osv` |
+
 ## Priority rules
 
 | Priority | Rule |
 |---|---|
-| P1 - Act now | In CISA KEV, **or** EPSS >= 0.50 |
-| P2 - High | CVSS >= 9.0, **or** CVSS >= 7.0 with EPSS >= 0.10 |
+| P1 - Act now | In CISA KEV, **or** EPSS >= 0.50, **or** SSVC exploitation = active |
+| P2 - High | CVSS >= 9.0, **or** CVSS >= 7.0 with EPSS >= 0.10, **or** SSVC exploitation = poc |
 | P3 - Medium | CVSS >= 7.0 |
 | P4 - Low / Unscored | Everything else. Many brand-new CVEs are unscored for 1-3 days while NVD analyses them - they reappear scored in later runs. |
 
@@ -46,10 +71,10 @@ Adjust in `fetch_vulns.py` (search for `priority`).
 
 ## Output
 
-- **Excel**: Summary, All CVEs, KEV - Exploited, Critical & High, Watchlist sheets.
+- **Excel**: Summary, All CVEs, KEV - Exploited, Critical & High, Watchlist, Packages (GHSA-OSV) sheets.
   Filterable, frozen headers, severity colour-coded, NVD hyperlinks.
 - **PDF**: one-page summary plus P1/P2 detail - meant for people who won't open a spreadsheet.
-- **Dashboard**: latest day with search/filter/sort, download buttons, and a 90-day history table.
+- **Dashboard**: latest day with search, New/Updated + severity + KEV + watchlist filters, sorting, download buttons, and a 10-day history table.
 
 ## Backfill / missed run
 

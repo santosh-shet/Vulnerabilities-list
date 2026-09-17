@@ -39,18 +39,24 @@ SEVERITY_FONT = {"CRITICAL": "FFFFFF", "HIGH": "FFFFFF", "MEDIUM": "000000", "LO
 
 COLUMNS = [
     ("Priority", "priority", 16),
-    ("CVE", "cve_id", 16),
+    ("Reason", "reason", 13),
+    ("ID", "cve_id", 18),
     ("CVSS", "cvss_score", 7),
     ("Severity", "cvss_severity", 10),
+    ("Score src", "cvss_source", 10),
     ("KEV", "kev", 6),
     ("EPSS", "epss", 7),
+    ("SSVC", "ssvc_exploitation", 9),
     ("Watchlist", "watchlist_hits", 16),
-    ("Vendor / Product", "vendor_product", 30),
+    ("Vendor / Product", "vendor_product", 28),
+    ("Package", "ecosystem_package", 28),
+    ("Fixed in", "patched_version", 14),
+    ("Sources", "sources", 18),
     ("Published", "published", 12),
     ("KEV Due", "kev_due_date", 11),
     ("CWE", "cwe", 12),
     ("Description", "description", 90),
-    ("NVD Link", "nvd_url", 42),
+    ("Link", "nvd_url", 42),
 ]
 
 
@@ -66,6 +72,8 @@ def load_snapshot(date: str | None):
 def fmt(v):
     if v is None:
         return ""
+    if isinstance(v, list):
+        return ", ".join(str(x) for x in v)
     if isinstance(v, bool):
         return "Yes" if v else ""
     if isinstance(v, float):
@@ -98,13 +106,15 @@ def write_sheet(ws, records, title):
 
     for i, (_, _, width) in enumerate(COLUMNS, start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
-    ws.freeze_panes = "C2"
+    ws.freeze_panes = "D2"
     ws.auto_filter.ref = ws.dimensions
 
     # Hyperlinks on the NVD column
-    link_col = [c[0] for c in COLUMNS].index("NVD Link") + 1
-    for row in range(2, ws.max_row + 1):
-        cell = ws.cell(row=row, column=link_col)
+    link_col = [c[0] for c in COLUMNS].index("Link") + 1
+    for idx, r in enumerate(records, start=2):
+        cell = ws.cell(row=idx, column=link_col)
+        if not cell.value:
+            cell.value = r.get("advisory_url") or ""
         if cell.value:
             cell.hyperlink = cell.value
             cell.font = Font(name="Arial", size=10, color="0563C1", underline="single")
@@ -149,7 +159,9 @@ def build_xlsx(snap, out: Path):
         ("Window (UTC)", f"{snap['window_start'][:16]} to {snap['window_end'][:16]}"),
         ("Generated", snap["generated_at"][:19].replace("T", " ") + " UTC"),
         ("", ""),
-        ("Total CVEs", c["total"]),
+        ("Total entries", c["total"]),
+        ("  Newly published", c.get("new", "")),
+        ("  Updated (recently published, now scored / KEV)", c.get("updated", "")),
         ("In CISA KEV (actively exploited)", c["kev"]),
         ("Critical", c["critical"]),
         ("High", c["high"]),
@@ -157,13 +169,15 @@ def build_xlsx(snap, out: Path):
         ("Low", c["low"]),
         ("Unscored (awaiting NVD analysis)", c["unscored"]),
         ("Watchlist matches", c["watchlist"]),
+        ("From GitHub Advisories", c.get("ghsa", "")),
+        ("From OSV.dev", c.get("osv", "")),
         ("", ""),
-        ("Sources", "NVD API 2.0, CISA KEV catalogue, FIRST EPSS"),
+        ("Sources", "NVD 2.0, CISA KEV, FIRST EPSS, CISA Vulnrichment, GitHub Security Advisories, OSV.dev"),
         ("Watchlist keywords", ", ".join(snap.get("watchlist_keywords", [])) or "(none configured)"),
         ("", ""),
         ("Priority rules", ""),
-        ("P1 - Act now", "In CISA KEV, or EPSS >= 0.50"),
-        ("P2 - High", "CVSS >= 9.0, or CVSS >= 7.0 with EPSS >= 0.10"),
+        ("P1 - Act now", "In CISA KEV, or EPSS >= 0.50, or SSVC exploitation = active"),
+        ("P2 - High", "CVSS >= 9.0, or CVSS >= 7.0 with EPSS >= 0.10, or SSVC exploitation = poc"),
         ("P3 - Medium", "CVSS >= 7.0"),
         ("P4 - Low / Unscored", "Everything else, incl. CVEs not yet scored by NVD"),
     ]
@@ -186,6 +200,7 @@ def build_xlsx(snap, out: Path):
     )
     if snap.get("watchlist_keywords"):
         write_sheet(wb.create_sheet(), [r for r in recs if r["watchlist_match"]], "Watchlist")
+    write_sheet(wb.create_sheet(), [r for r in recs if r.get("ecosystem_package")], "Packages (GHSA-OSV)")
 
     out.parent.mkdir(parents=True, exist_ok=True)
     wb.save(out)
@@ -215,7 +230,7 @@ def build_pdf(snap, out: Path):
         Paragraph(f"Daily Vulnerability Report - {snap['report_date']}", h1),
         Paragraph(
             f"Window (UTC): {snap['window_start'][:16]} to {snap['window_end'][:16]} &nbsp;|&nbsp; "
-            f"Sources: NVD, CISA KEV, FIRST EPSS &nbsp;|&nbsp; "
+            f"Sources: NVD, CISA KEV, EPSS, Vulnrichment, GHSA, OSV &nbsp;|&nbsp; "
             f"Generated {snap['generated_at'][:19].replace('T', ' ')} UTC",
             small,
         ),
@@ -223,8 +238,8 @@ def build_pdf(snap, out: Path):
     ]
 
     summary = [
-        ["Total", "KEV (exploited)", "Critical", "High", "Medium", "Low", "Unscored", "Watchlist"],
-        [c["total"], c["kev"], c["critical"], c["high"], c["medium"], c["low"], c["unscored"], c["watchlist"]],
+        ["Total", "New", "Updated", "KEV", "Critical", "High", "Medium", "Unscored", "Watchlist", "Packages"],
+        [c["total"], c.get("new", ""), c.get("updated", ""), c["kev"], c["critical"], c["high"], c["medium"], c["unscored"], c["watchlist"], c.get("ghsa", 0)],
     ]
     t = RLTable(summary, hAlign="LEFT")
     t.setStyle(
@@ -236,9 +251,9 @@ def build_pdf(snap, out: Path):
                 ("FONTSIZE", (0, 0), (-1, -1), 9),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                ("BACKGROUND", (1, 1), (1, 1), colors.HexColor("#E6D9F2")),
-                ("BACKGROUND", (2, 1), (2, 1), colors.HexColor("#F4CCCC")),
-                ("BACKGROUND", (3, 1), (3, 1), colors.HexColor("#FCE5CD")),
+                ("BACKGROUND", (3, 1), (3, 1), colors.HexColor("#E6D9F2")),
+                ("BACKGROUND", (4, 1), (4, 1), colors.HexColor("#F4CCCC")),
+                ("BACKGROUND", (5, 1), (5, 1), colors.HexColor("#FCE5CD")),
             ]
         )
     )
@@ -250,19 +265,21 @@ def build_pdf(snap, out: Path):
             story.append(Paragraph("None in this window.", body))
             story.append(Spacer(1, 6))
             return
-        data = [["CVE", "CVSS", "Sev", "KEV", "EPSS", "Vendor / Product", "Description"]]
+        data = [["ID", "CVSS", "Sev", "KEV", "EPSS", "Vendor / Product / Package", "Description"]]
         for r in records:
             desc = r["description"]
             if len(desc) > 420:
                 desc = desc[:417] + "..."
             data.append(
                 [
-                    Paragraph(f'<a href="{r["nvd_url"]}" color="blue">{r["cve_id"]}</a>', body),
+                    Paragraph(f'<a href="{r.get("nvd_url") or r.get("advisory_url") or "#"}" color="blue">{r["cve_id"]}</a>'
+                              f'<br/><font size="6" color="grey">{html.escape(r.get("reason",""))}</font>', body),
                     fmt(r["cvss_score"]),
                     r["cvss_severity"][:4],
                     "Yes" if r["kev"] else "",
                     fmt(r["epss"]),
-                    Paragraph(html.escape(r["vendor_product"][:120]), body),
+                    Paragraph(html.escape((r["vendor_product"] or r.get("ecosystem_package", ""))[:120])
+                              + (f'<br/><font size="6" color="grey">fixed: {html.escape(r["patched_version"][:60])}</font>' if r.get("patched_version") else ""), body),
                     Paragraph(html.escape(desc), body),
                 ]
             )
@@ -325,7 +342,7 @@ def build_dashboard(snap, xlsx_rel: str, pdf_rel: str, repo_url: str):
     archive = [a for a in archive if a["date"] != snap["report_date"]]
     archive.append({"date": snap["report_date"], "counts": snap["counts"], "xlsx": xlsx_rel, "pdf": pdf_rel})
     archive.sort(key=lambda a: a["date"], reverse=True)
-    archive = archive[:10]  # rolling 10-days window
+    archive = archive[:10]  # rolling 10-day window
     with open(archive_path, "w") as f:
         json.dump(archive, f, indent=1)
 
@@ -338,13 +355,16 @@ def build_dashboard(snap, xlsx_rel: str, pdf_rel: str, repo_url: str):
         return (
             "<tr>"
             f"<td class='pri'>{html.escape(r['priority'])}</td>"
-            f"<td><a href='{r['nvd_url']}' target='_blank'>{r['cve_id']}</a></td>"
+            f"<td><span class='rsn {'new' if r.get('reason')=='New' else 'upd'}'>{html.escape(r.get('reason','New'))}</span></td>"
+            f"<td><a href='{r.get('nvd_url') or r.get('advisory_url') or '#'}' target='_blank'>{r['cve_id']}</a></td>"
             f"<td class='num'>{fmt(r['cvss_score'])}</td>"
             f"<td><span class='sev {sev.lower()}'>{sev}</span></td>"
             f"<td>{'<span class=kev>KEV</span>' if r['kev'] else ''}</td>"
             f"<td class='num'>{fmt(r['epss'])}</td>"
             f"<td>{html.escape(r['watchlist_hits'])}</td>"
-            f"<td>{html.escape(r['vendor_product'][:80])}</td>"
+            f"<td>{html.escape((r['vendor_product'] or r.get('ecosystem_package',''))[:80])}"
+            f"{('<br><small>fixed: ' + html.escape(r['patched_version'][:50]) + '</small>') if r.get('patched_version') else ''}</td>"
+            f"<td class='src'>{html.escape(', '.join(r.get('sources', [])))}</td>"
             f"<td class='desc'>{html.escape(r['description'][:300])}{'...' if len(r['description']) > 300 else ''}</td>"
             "</tr>"
         )
@@ -380,47 +400,54 @@ def build_dashboard(snap, xlsx_rel: str, pdf_rel: str, repo_url: str):
  .sev.critical{{background:#C00000;color:#fff}} .sev.high{{background:#E97132;color:#fff}}
  .sev.medium{{background:#F2C94C}} .sev.low{{background:#8FBC8F}}
  .kev{{background:#7030A0;color:#fff;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700}}
+ .rsn{{padding:2px 6px;border-radius:4px;font-size:11px;white-space:nowrap}} .rsn.new{{background:#DCE6F5;color:#1F3864}} .rsn.upd{{background:#EEE;color:#555}}
+ td.src{{font-size:11px;color:#555;white-space:nowrap}} td small{{color:#2e7d32}}
  details{{margin-top:24px}} summary{{cursor:pointer;font-weight:600}}
  footer{{color:var(--muted);font-size:12px;margin-top:24px}}
 </style></head><body>
 <h1>Daily Vulnerability Report</h1>
 <div class="sub">{snap['report_date']} &nbsp;|&nbsp; window {snap['window_start'][:16]} to {snap['window_end'][:16]} UTC
- &nbsp;|&nbsp; sources: NVD, CISA KEV, FIRST EPSS</div>
+ &nbsp;|&nbsp; sources: NVD, CISA KEV, EPSS, CISA Vulnrichment, GitHub Advisories, OSV.dev</div>
 <div class="cards">
- <div class="card"><b>{c['total']}</b><span>Total CVEs</span></div>
+ <div class="card"><b>{c['total']}</b><span>Total</span></div>
+ <div class="card"><b style="color:#1F3864">{c.get('new', '')}</b><span>New today</span></div>
+ <div class="card"><b style="color:#6b6b6b">{c.get('updated', '')}</b><span>Updated</span></div>
  <div class="card"><b style="color:#7030A0">{c['kev']}</b><span>In CISA KEV</span></div>
  <div class="card"><b style="color:#C00000">{c['critical']}</b><span>Critical</span></div>
  <div class="card"><b style="color:#E97132">{c['high']}</b><span>High</span></div>
  <div class="card"><b>{c['medium']}</b><span>Medium</span></div>
  <div class="card"><b>{c['unscored']}</b><span>Unscored</span></div>
  <div class="card"><b>{c['watchlist']}</b><span>Watchlist</span></div>
+ <div class="card"><b>{c.get('ghsa', 0)}</b><span>Packages (GHSA)</span></div>
 </div>
 <div class="dl"><a href="{blob}{xlsx_rel}">Download Excel</a><a href="{blob}{pdf_rel}">Download PDF</a></div>
 <div class="tools">
  <input id="q" placeholder="Filter by CVE, vendor, keyword..." size="36">
  <select id="sev"><option value="">All severities</option><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select>
+ <select id="rsn"><option value="">New + Updated</option><option value="New">New only</option><option value="Updated">Updated only</option></select>
  <label><input type="checkbox" id="kevonly"> KEV only</label>
  <label><input type="checkbox" id="wlonly"> Watchlist only</label>
  <span id="count" class="sub" style="margin:0"></span>
 </div>
 <table id="t"><thead><tr>
-<th>Priority</th><th>CVE</th><th>CVSS</th><th>Severity</th><th>KEV</th><th>EPSS</th><th>Watchlist</th><th>Vendor / Product</th><th>Description</th>
+<th>Priority</th><th>Reason</th><th>ID</th><th>CVSS</th><th>Severity</th><th>KEV</th><th>EPSS</th><th>Watchlist</th><th>Vendor / Product / Package</th><th>Sources</th><th>Description</th>
 </tr></thead><tbody>
 {''.join(row(r) for r in recs)}
 </tbody></table>
 <details><summary>Previous reports ({len(archive)})</summary>
 <table><thead><tr><th>Date</th><th>Total</th><th>KEV</th><th>Critical</th><th>High</th><th>Files</th></tr></thead>
 <tbody>{history_rows}</tbody></table></details>
-<footer>Generated {snap['generated_at'][:19].replace('T',' ')} UTC by GitHub Actions. Priority: P1 = KEV or EPSS &ge; 0.5; P2 = CVSS &ge; 9.0 or CVSS &ge; 7.0 with EPSS &ge; 0.1; P3 = CVSS &ge; 7.0.</footer>
+<footer>Generated {snap['generated_at'][:19].replace('T',' ')} UTC by GitHub Actions. <b>New</b> = published in the window. <b>Updated</b> = published in the last 30 days and received a CVSS score or KEV listing in the window. Older CVEs with metadata-only changes are excluded. Priority: P1 = KEV, EPSS &ge; 0.5 or SSVC active; P2 = CVSS &ge; 9.0, CVSS &ge; 7.0 with EPSS &ge; 0.1, or SSVC poc; P3 = CVSS &ge; 7.0.</footer>
 <script>
-const q=document.getElementById('q'),sev=document.getElementById('sev'),kev=document.getElementById('kevonly'),wl=document.getElementById('wlonly');
+const q=document.getElementById('q'),sev=document.getElementById('sev'),kev=document.getElementById('kevonly'),wl=document.getElementById('wlonly'),rsn=document.getElementById('rsn');
 const rows=[...document.querySelectorAll('#t tbody tr')];
 function apply(){{const s=q.value.toLowerCase(),sv=sev.value;let n=0;
  rows.forEach(r=>{{const txt=r.innerText.toLowerCase();const c=r.children;
-  const ok=(!s||txt.includes(s))&&(!sv||c[3].innerText===sv)&&(!kev.checked||c[4].innerText==='KEV')&&(!wl.checked||c[6].innerText.trim()!=='');
+  const rv=rsn.value;const rt=c[1].innerText.trim();
+  const ok=(!s||txt.includes(s))&&(!sv||c[4].innerText===sv)&&(!kev.checked||c[5].innerText==='KEV')&&(!wl.checked||c[7].innerText.trim()!=='')&&(!rv||(rv==='New'?rt==='New':rt!=='New'));
   r.style.display=ok?'':'none';if(ok)n++;}});
  document.getElementById('count').textContent=n+' of '+rows.length+' shown';}}
-[q,sev,kev,wl].forEach(e=>e.addEventListener('input',apply));apply();
+[q,sev,kev,wl,rsn].forEach(e=>e.addEventListener('input',apply));apply();
 document.querySelectorAll('#t th').forEach((th,i)=>th.addEventListener('click',()=>{{
  const asc=th.dataset.asc!=='1';th.dataset.asc=asc?'1':'0';
  const tb=document.querySelector('#t tbody');

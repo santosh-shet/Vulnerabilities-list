@@ -1,56 +1,89 @@
-# Keywords matched (case-insensitive) against each CVE's description and
-# vendor:product string. Matches are flagged in the "Watchlist" column/sheet
-# and get their own section in the PDF. Edit freely - the next run picks it up.
+# ---------------------------------------------------------------------------
+# Watchlist
+# ---------------------------------------------------------------------------
+# Matched (case-insensitive) against the CVE's vendor:product (from NVD CPE /
+# CISA / KEV) and package name (from GHSA / OSV). Only when a CVE has none of
+# those yet does it fall back to matching the description text.
 #
-# Tip: use vendor and product names as they appear in CPE strings
-# (e.g. "microsoft", "oracle", "openssl") plus technology terms your estate uses.
-
+# Keep these SPECIFIC. Broad words like "python", "linux", ".net", "api" match
+# a large share of all CVEs and make the watchlist useless. Prefer the vendor
+# or product name as it appears in CPE strings, e.g. "microsoft:windows_server".
 keywords:
-  - microsoft
-  - windows
-  - oracle
-  - java
+  - microsoft:windows_server
+  - microsoft:exchange
+  - microsoft:sql_server
+  - microsoft:sharepoint
+  - oracle:database
+  - oracle:weblogic
+  - oracle:java
   - openssl
   - openssh
-  - linux kernel
-  - red hat
-  - ubuntu
   - vmware
   - citrix
   - fortinet
-  - palo alto
+  - paloaltonetworks
   - cisco
-  - f5
-  - ibm
-  - websphere
-  - db2
+  - f5:big-ip
+  - ibm:websphere
+  - ibm:db2
+  - ibm:mq
   - sap
-  - apache
-  - tomcat
+  - apache:tomcat
+  - apache:http_server
+  - apache:struts
+  - apache:kafka
+  - apache:activemq
   - nginx
   - kubernetes
   - docker
   - jenkins
   - gitlab
   - atlassian
-  - jira
-  - confluence
   - spring
   - log4j
-  - node.js
-  - python
-  - .net
   - postgresql
   - mysql
   - mongodb
   - redis
-  - elasticsearch
-  - kafka
-  - azure
-  - aws
+  - elastic
+  - keycloak
   - okta
-  - active directory
+  - hashicorp
+  - jackson-databind
+  - fasterxml
 
-# CVEs below this CVSS score are still stored and listed, but you can use this
-# later to trim the email/PDF if volume becomes a problem. 0 = keep everything.
+# ---------------------------------------------------------------------------
+# What counts as a row
+# ---------------------------------------------------------------------------
+# "New"     = published in the 24h window (typically 100-150/day).
+# "Updated" = published within modified_lookback_days AND, in the window,
+#             received its first CVSS score (or was added to KEV). This is how
+#             yesterday's "Unscored" items come back once NVD/CISA scores them.
+# Older CVEs that NVD merely re-processed are ignored - that was the source of
+# 3,000-row days.
+include_updated: true
+modified_lookback_days: 30
+
+# ---------------------------------------------------------------------------
+# Sources
+# ---------------------------------------------------------------------------
+sources:
+  vulnrichment: true   # CISA scoring/SSVC for CVEs NVD hasn't analysed yet
+  ghsa: true           # GitHub Security Advisories (npm, pip, Maven, Go, NuGet, RubyGems, ...)
+  osv: true            # OSV.dev ecosystem dumps, filtered to the window
+
+# OSV ecosystems to pull. Names must match https://osv-vulnerabilities.storage.googleapis.com/<name>/all.zip
+# GHSA already covers the package managers well; OSV adds most value for
+# Linux distros and language runtimes. Each dump is downloaded daily, so keep
+# the list short. Examples: Debian, Ubuntu, Alpine, Go, PyPI, Maven, npm, NuGet, crates.io, Linux
+osv_ecosystems:
+  - Go
+  - PyPI
+  - Maven
+  - npm
+  - NuGet
+
+# Cap on per-CVE Vulnrichment lookups per run (one HTTP call each)
+max_enrich_calls: 400
+
 min_cvss: 0

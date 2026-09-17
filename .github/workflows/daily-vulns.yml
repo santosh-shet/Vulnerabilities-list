@@ -33,11 +33,11 @@ jobs:
       report_date: ${{ steps.build.outputs.report_date }}
       summary: ${{ steps.build.outputs.summary }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -47,6 +47,7 @@ jobs:
       - name: Fetch NVD / KEV / EPSS
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}   # optional but strongly recommended
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatic; raises GitHub Advisories rate limit
         run: |
           if [ -n "${{ github.event.inputs.date }}" ]; then
             python scripts/fetch_vulns.py --date "${{ github.event.inputs.date }}"
