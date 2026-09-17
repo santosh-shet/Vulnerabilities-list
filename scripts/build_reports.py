@@ -584,7 +584,7 @@ def build_dashboard(snapshot, xlsx_rel, pdf_rel, repo_url):
         f"<td class='num'>{a['counts']['total']}</td>"
         f"<td class='num'>{a['counts'].get('new', 0)}</td>"
         f"<td class='num'>{a['counts'].get('updated', 0)}</td>"
-        f"<td class='num'>{a['counts']['kev_added']}</td>"
+        f"<td class='num'>{a['counts'].get('kev_added', 0)}</td>"
         f"<td class='num'>{a['counts']['critical']}</td>"
         f"<td class='num'>{a['counts']['high']}</td>"
         f"<td><a href='{blob}{a['xlsx']}'>Excel</a> &middot; "
