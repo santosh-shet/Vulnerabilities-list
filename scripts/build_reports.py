@@ -531,18 +531,43 @@ def build_pdf(snapshot, output):
 def build_dashboard(snapshot, xlsx_rel, pdf_rel, repo_url):
 
     # Vendor / Product / Package dropdown values.
+    # Prefer normalized entities extracted by fetch_vulns.py; fall back to
+    # structured fields for older snapshots.
     vpp_values = set()
     for _item in snapshot.get("records", []):
         if not isinstance(_item, dict):
             continue
-        for _key in ("vendor_product", "ecosystem_package", "package", "product", "vendor"):
-            _value = _item.get(_key)
-            if _value:
-                vpp_values.add(str(_value).strip())
+        _entities = _item.get("entities") or []
+        if _entities:
+            vpp_values.update(str(v).strip() for v in _entities if str(v).strip())
+        else:
+            for _key in ("vendor_product", "ecosystem_package", "package", "product", "vendor"):
+                _value = _item.get(_key)
+                if _value:
+                    vpp_values.update(x.strip() for x in str(_value).split(",") if x.strip())
+
     vpp_options = "".join(
-        f"<option value='{html.escape(v)}'>{html.escape(v)}</option>"
+        f"<option value='{html.escape(v, quote=True)}'>{html.escape(v)}</option>"
         for v in sorted(vpp_values, key=str.casefold)
     )
+
+    # Top 5 entities/groups among today's Critical vulnerabilities.
+    # entity_groups preserves useful combined wording such as "cPanel & WHM".
+    from collections import Counter
+    critical_group_counts = Counter()
+    for _item in snapshot.get("records", []):
+        if not isinstance(_item, dict):
+            continue
+        if str(_item.get("cvss_severity", "")).upper() != "CRITICAL":
+            continue
+        _groups = _item.get("entity_groups") or _item.get("entities") or []
+        for _group in _groups:
+            _group = str(_group).strip()
+            if _group:
+                critical_group_counts[_group] += 1
+
+    top_critical_entities = [name for name, _count in critical_group_counts.most_common(5)]
+    top_critical_text = ", ".join(top_critical_entities) if top_critical_entities else "None identified"
     DOCS_DIR.mkdir(exist_ok=True)
     archive_path = DOCS_DIR / "archive.json"
 
@@ -585,7 +610,7 @@ def build_dashboard(snapshot, xlsx_rel, pdf_rel, repo_url):
             f"<td>{'<span class=kev>KEV</span>' if record['kev'] else ''}</td>"
             f"<td class='num'>{fmt(record['epss'])}</td>"
             f"<td>{html.escape(record['watchlist_hits'])}</td>"
-            f"<td>{html.escape((record['vendor_product'] or record.get('ecosystem_package', ''))[:80])}"
+            f"<td>{html.escape((', '.join(record.get('entities', [])) or record['vendor_product'] or record.get('ecosystem_package', ''))[:120])}"
             f"{('<br><small>fixed: ' + html.escape(record['patched_version'][:50]) + '</small>') if record.get('patched_version') else ''}</td>"
             f"<td class='src'>{html.escape(', '.join(record.get('sources', [])))}</td>"
             f"<td class='desc'>{html.escape(record['description'][:300])}"
@@ -644,6 +669,7 @@ td small{{color:#2e7d32}}
 details{{margin-top:24px}}
 summary{{cursor:pointer;font-weight:600}}
 footer{{color:var(--muted);font-size:12px;margin-top:24px}}
+.top-critical{{margin:10px 0 14px;padding:9px 12px;background:#fff;border:1px solid var(--line);border-radius:6px;font-size:13px}}
 
 .filter-group select#vppFilter {{ min-width: 240px; max-width: 420px; }}
 </style>
@@ -673,6 +699,9 @@ window {snapshot['window_start'][:16]} to {snapshot['window_end'][:16]} UTC
 <a href="{blob}{xlsx_rel}">Download Excel</a>
 <a href="{blob}{pdf_rel}">Download PDF</a>
 </div>
+<div class="top-critical">
+<b>Top Critical Vendor / Product / Package:</b> {html.escape(top_critical_text)}
+</div>
 
 <div class="tools">
 <input id="q" placeholder="Filter by CVE, vendor, keyword..." size="36">
@@ -691,14 +720,13 @@ window {snapshot['window_start'][:16]} to {snapshot['window_end'][:16]} UTC
 </select>
 <label><input type="checkbox" id="kevonly"> KEV only</label>
 <label><input type="checkbox" id="wlonly"> Watchlist only</label>
-<span id="count" class="sub" style="margin:0"></span>
-</div>
-
-
 <select id="vppFilter">
 <option value="">All vendors / products / packages</option>
 {vpp_options}
 </select>
+<span id="count" class="sub" style="margin:0"></span>
+</div>
+
 <table id="t">
 <thead>
 <tr>

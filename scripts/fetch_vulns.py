@@ -22,6 +22,7 @@ import argparse
 import io
 import json
 import os
+import re
 import sys
 import time
 import zipfile
@@ -111,6 +112,8 @@ def blank_record(item_id):
         "cwe": "",
         "vendor_product": "",
         "ecosystem_package": "",
+        "entities": [],
+        "entity_groups": [],
         "patched_version": "",
         "ssvc_exploitation": "",
         "ssvc_automatable": "",
@@ -198,6 +201,151 @@ def parse_cvss(metrics):
         return None, "", "", "", ""
     _, score, severity, vector, version, source = best
     return score, severity or severity_from_score(score), vector, version, source
+
+
+def _clean_entity(value):
+    value = re.sub(r"\s+", " ", str(value or "")).strip(" .,:;()[]{}")
+    value = re.sub(r"^(?:the|a|an)\s+", "", value, flags=re.I)
+    return value
+
+
+def extract_entities(record):
+    """Build normalized vendor/product/package entities from structured data and description."""
+    entities = set()
+
+    # Structured NVD CPE values: vendor:product.
+    for value in (record.get("vendor_product") or "").split(","):
+        value = value.strip()
+        if ":" in value:
+            vendor, product = value.split(":", 1)
+            vendor = _clean_entity(vendor.replace("_", " "))
+            product = _clean_entity(product.replace("_", " "))
+            if vendor and vendor not in {"*", "-"}:
+                entities.add(vendor)
+            if product and product not in {"*", "-"}:
+                entities.add(product)
+        elif value:
+            entities.add(_clean_entity(value.replace("_", " ")))
+
+    # Package ecosystems from GHSA/OSV.
+    for value in (record.get("ecosystem_package") or "").split(","):
+        value = value.strip()
+        if ":" in value:
+            ecosystem, package = value.split(":", 1)
+            package = _clean_entity(package)
+            if package:
+                entities.add(package)
+        elif value:
+            entities.add(_clean_entity(value))
+
+    desc = record.get("description") or ""
+    patterns = [
+        # "The TrueBooker ... plugin for WordPress"
+        r"(?:the\s+)?(.{2,100}?)\s+plugin\s+for\s+(WordPress|Drupal|Joomla|cPanel\s*&\s*WHM|cPanel|Plesk|Kubernetes|Apache|Nginx|Microsoft Windows)",
+        # "X for WordPress" / "X for Drupal" etc.
+        r"(?:the\s+)?(.{2,100}?)\s+for\s+(WordPress|Drupal|Joomla|cPanel|Plesk|Kubernetes|Apache|Nginx|Microsoft Windows)",
+        # "Dell ObjectScale, versions ..." / "X contains ..."
+        r"^(.{2,100}?)(?:,\s+versions?\b|\s+contains\b|\s+is vulnerable\b|\s+are vulnerable\b)",
+    ]
+    for idx, pattern in enumerate(patterns):
+        m = re.search(pattern, desc, flags=re.I)
+        if not m:
+            continue
+        subject = _clean_entity(m.group(1))
+        if subject:
+            # Strip generic lead-ins and overly generic vulnerability wording.
+            subject = re.sub(r"^(?:the\s+)?", "", subject, flags=re.I)
+            subject = re.sub(r"\s+(?:plugin|extension|application|software|system)$", "", subject, flags=re.I)
+            if len(subject) <= 80 and not re.search(r"\b(?:vulnerability|vulnerable|contains an|allows? an?)\b", subject, re.I):
+                entities.add(subject)
+        if len(m.groups()) > 1:
+            platform = _clean_entity(m.group(2))
+            if platform:
+                entities.add(platform)
+        # Only use the first strong description pattern to avoid noisy captures.
+        break
+
+    # Common named platforms/products explicitly introduced by "for ...".
+    for m in re.finditer(r"\bfor\s+(WordPress|Drupal|Joomla|cPanel\s*&\s*WHM|cPanel|Plesk|Kubernetes|Apache|Nginx)\b", desc, re.I):
+        phrase = _clean_entity(m.group(1))
+        if phrase:
+            if re.search(r"cPanel\s*&\s*WHM", phrase, re.I):
+                entities.update(["cPanel", "WHM"])
+            else:
+                entities.add(phrase)
+
+    # Watchlist hits are often already curated vendor/product names.
+    for hit in (record.get("watchlist_hits") or "").split(","):
+        hit = _clean_entity(hit)
+        if len(hit) >= 3:
+            entities.add(hit)
+
+    # Remove obvious generic terms and very long fragments.
+    generic = {
+        "plugin", "extension", "software", "application", "system", "server",
+        "product", "platform", "library", "framework", "component", "module",
+    }
+    entities = {
+        x for x in entities
+        if x and x.lower() not in generic and len(x) <= 100
+    }
+    return sorted(entities, key=str.casefold)
+
+
+def entity_groups(record):
+    """Human-readable vendor/product groups used for the dashboard's top-five line."""
+    desc = record.get("description") or ""
+    groups = []
+
+    # "TrueBooker ... plugin for WordPress" -> concise product group.
+    m = re.search(
+        r"(?:the\s+)?(.{2,100}?)\s+plugin\s+for\s+(WordPress|Drupal|Joomla|cPanel\s*&\s*WHM|cPanel|Plesk|Kubernetes|Apache|Nginx|Microsoft Windows)",
+        desc,
+        flags=re.I,
+    )
+    if m:
+        subject = _clean_entity(m.group(1))
+        platform = _clean_entity(m.group(2))
+        if subject and len(subject) <= 80:
+            groups.append(subject)
+        if platform:
+            groups.append(platform)
+
+    # "Dell ObjectScale, versions ..." / "Cisco X contains ..."
+    if not groups:
+        m = re.search(
+            r"^(.{2,100}?)(?:,\s+versions?\b|\s+contains\b|\s+is vulnerable\b|\s+are vulnerable\b)",
+            desc,
+            flags=re.I,
+        )
+        if m:
+            subject = _clean_entity(m.group(1))
+            if subject and len(subject) <= 80:
+                groups.append(subject)
+
+    # Preserve well-known combined platform wording for the top-five display.
+    for m in re.finditer(r"\bfor\s+(cPanel\s*&\s*WHM)\b", desc, re.I):
+        groups.append(_clean_entity(m.group(1)))
+
+    if groups:
+        return list(dict.fromkeys(groups))
+
+    # Fall back to structured NVD CPE vendor/product pairs.
+    raw = record.get("vendor_product") or ""
+    for value in raw.split(","):
+        value = value.strip()
+        if ":" in value:
+            vendor, product = value.split(":", 1)
+            vendor = _clean_entity(vendor.replace("_", " "))
+            product = _clean_entity(product.replace("_", " "))
+            if vendor and product and vendor not in {"*", "-"} and product not in {"*", "-"}:
+                groups.append(f"{vendor} {product}")
+            elif vendor:
+                groups.append(vendor)
+        elif value:
+            groups.append(_clean_entity(value.replace("_", " ")))
+
+    return list(dict.fromkeys(groups))
 
 
 def normalise_nvd(item):
@@ -790,6 +938,8 @@ def main():
         hits = [k for k in cfg["keywords"] if k in target]
         record["watchlist_hits"] = ", ".join(hits)
         record["watchlist_match"] = bool(hits)
+        record["entities"] = extract_entities(record)
+        record["entity_groups"] = entity_groups(record)
         record["priority"] = priority_for(record)
 
     # New first, then updated/KEV, with highest priority first.
