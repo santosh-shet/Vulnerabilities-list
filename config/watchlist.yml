@@ -1,69 +1,167 @@
 # ---------------------------------------------------------------------------
-# Watchlist
+# Tieto Technology Watchlist
 # ---------------------------------------------------------------------------
-# Matched (case-insensitive) against the CVE's vendor:product (from NVD CPE /
-# CISA / KEV) and package name (from GHSA / OSV). Only when a CVE has none of
-# those yet does it fall back to matching the description text.
+# Specific technologies, platforms, products and high-impact open-source
+# packages relevant to enterprise environments and Tieto security work.
 #
-# Keep these SPECIFIC. Broad words like "python", "linux", ".net", "api" match
-# a large share of all CVEs and make the watchlist useless. Prefer the vendor
-# or product name as it appears in CPE strings, e.g. "microsoft:windows_server".
+# Matching is case-insensitive. Keep entries specific to avoid excessive
+# false positives from generic terms such as "cloud", "database", "python",
+# "linux", ".net" or "api".
+#
+# The list includes:
+#   - Enterprise and Microsoft technologies
+#   - Atlassian and Marketplace technologies
+#   - Cloud and data platforms
+#   - DevSecOps/developer platforms
+#   - Security, identity and network products
+#   - Web/middleware technologies
+#   - Major open-source ecosystems and high-impact packages
+#
+# ---------------------------------------------------------------------------
+
 keywords:
+
+  # Technology Watchlist
+  - microsoft:windows
   - microsoft:windows_server
   - microsoft:exchange
   - microsoft:sql_server
   - microsoft:sharepoint
-  - oracle:database
-  - oracle:weblogic
-  - oracle:java
+  - microsoft:azure
+  - microsoft:azure_devops
+  - microsoft:entra
+  - microsoft:entra_id
+  - microsoft:active_directory
+  - atlassian
+  - atlassian:jira
+  - atlassian:confluence
+  - atlassian:bitbucket
+  - atlassian:bamboo
+  - jira
+  - confluence
+  - bitbucket
+  - xray
+  - tempo
+  - appfire
+  - comala
+  - jellyfish
+  - aws
+  - amazon:web_services
+  - amazon:ec2
+  - amazon:s3
+  - databricks
+  - snowflake
+  - postgresql
+  - mysql
+  - mongodb
+  - redis
+  - elasticsearch
+  - elastic
+  - github
+  - gitlab
+  - jenkins
+  - docker
+  - kubernetes
+  - terraform
+  - hashicorp
+  - hashicorp:vault
+  - sonarqube
+  - bamboo
+  - crowdstrike
+  - paloaltonetworks
+  - fortinet
+  - cisco
+  - zscaler
+  - okta
+  - cyberark
+  - qualys
+  - tenable
+  - vmware
+  - broadcom:vmware
+  - citrix
+  - f5
+  - f5:big-ip
+  - sonicwall
+  - checkpoint
+  - juniper
+  - ivanti
   - openssl
   - openssh
-  - vmware
-  - citrix
-  - fortinet
-  - paloaltonetworks
-  - cisco
-  - f5:big-ip
-  - ibm:websphere
-  - ibm:db2
-  - ibm:mq
-  - sap
+  - keycloak
   - apache:tomcat
   - apache:http_server
   - apache:struts
   - apache:kafka
   - apache:activemq
   - nginx
-  - kubernetes
-  - docker
-  - jenkins
-  - gitlab
-  - atlassian
+  - php
   - spring
+  - spring_framework
+  - spring_boot
   - log4j
-  - postgresql
-  - mysql
-  - mongodb
-  - redis
-  - elastic
-  - keycloak
-  - okta
-  - hashicorp
+  - jackson
   - jackson-databind
   - fasterxml
+  - netty
+  - hibernate
+  - oracle
+  - oracle:database
+  - oracle:weblogic
+  - oracle:java
+  - ibm:websphere
+  - ibm:db2
+  - ibm:mq
+  - sap
+  - npm
+  - node.js
+  - nodejs
+  - axios
+  - express
+  - lodash
+  - webpack
+  - react
+  - vue
+  - angular
+  - next.js
+  - vite
+  - eslint
+  - typescript
+  - pypi
+  - python
+  - django
+  - flask
+  - fastapi
+  - requests
+  - urllib3
+  - cryptography
+  - maven
+  - go
+  - golang
+  - gin
+  - grpc
+  - dotnet
+  - asp.net
+  - nuget
+  - microsoft:aspnetcore
+  - entity_framework
+  - rust
+  - cargo
+  - redhat
+  - suse
+  - dell
+  - hp
 
 # ---------------------------------------------------------------------------
 # What counts as a row
 # ---------------------------------------------------------------------------
-# "New"          = published in the 24h window (typically 100-250/day).
-# "Newly scored" = published within modified_lookback_days AND crossed from
-#                  unscored to scored since the PREVIOUS snapshot. The diff
-#                  against yesterday's file means a CVE that merely gets
-#                  re-processed by NVD (same score as before) is NOT shown.
-#                  This is what stops the 3,000-6,000 row days.
+# "New" = published in the report window.
+# "Significant update" = an older vulnerability with a meaningful security
+# change detected since the previous snapshot.
 # "Added to KEV" = an older CVE CISA just flagged as exploited.
 #
-# Set include_updated: false if you want ONLY brand-new CVEs each day.
+# A vulnerability keeps its original published date when it is updated.
+# ---------------------------------------------------------------------------
+
 include_updated: true
 modified_lookback_days: 21
 
@@ -71,14 +169,10 @@ modified_lookback_days: 21
 # Sources
 # ---------------------------------------------------------------------------
 sources:
-  vulnrichment: true   # CISA scoring/SSVC for CVEs NVD hasn't analysed yet
-  ghsa: true           # GitHub Security Advisories (npm, pip, Maven, Go, NuGet, RubyGems, ...)
-  osv: true            # OSV.dev ecosystem dumps, filtered to the window
+  vulnrichment: true
+  ghsa: true
+  osv: true
 
-# OSV ecosystems to pull. Names must match https://osv-vulnerabilities.storage.googleapis.com/<name>/all.zip
-# GHSA already covers the package managers well; OSV adds most value for
-# Linux distros and language runtimes. Each dump is downloaded daily, so keep
-# the list short. Examples: Debian, Ubuntu, Alpine, Go, PyPI, Maven, npm, NuGet, crates.io, Linux
 osv_ecosystems:
   - Go
   - PyPI
@@ -86,7 +180,5 @@ osv_ecosystems:
   - npm
   - NuGet
 
-# Cap on per-CVE Vulnrichment lookups per run (one HTTP call each)
 max_enrich_calls: 400
-
 min_cvss: 0
