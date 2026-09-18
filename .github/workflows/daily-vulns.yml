@@ -2,10 +2,10 @@ name: Daily vulnerability report
 
 on:
   schedule:
-    # 06:00 UTC daily = 07:00 CET (winter) / 08:00 CEST (summer).
+    # 01:30 UTC daily = 07:00 IST (India)
     # Gives 2+ hours of buffer before the team checks at 10:00 CET, even if
     # GitHub delays the scheduled run. Cron is always UTC.
-    - cron: "0 6 * * *"
+    - cron: "30 1 * * *"
   workflow_dispatch:
     inputs:
       hours:
