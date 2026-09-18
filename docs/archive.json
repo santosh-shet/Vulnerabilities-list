@@ -1,20 +1,40 @@
 [
  {
+  "date": "2026-09-17",
+  "counts": {
+   "total": 1102,
+   "new": 1065,
+   "updated": 37,
+   "kev_added": 0,
+   "kev": 1,
+   "critical": 69,
+   "high": 195,
+   "medium": 133,
+   "low": 29,
+   "unscored": 689,
+   "watchlist": 22,
+   "ghsa": 64,
+   "osv": 88
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-17.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-17.pdf"
+ },
+ {
   "date": "2026-09-16",
   "counts": {
-   "total": 928,
-   "new": 924,
+   "total": 958,
+   "new": 954,
    "updated": 2,
    "kev_added": 2,
    "kev": 3,
-   "critical": 86,
-   "high": 374,
-   "medium": 237,
-   "low": 34,
-   "unscored": 199,
+   "critical": 97,
+   "high": 394,
+   "medium": 224,
+   "low": 36,
+   "unscored": 209,
    "watchlist": 134,
    "ghsa": 21,
-   "osv": 61
+   "osv": 91
   },
   "xlsx": "reports/2026/09/vulns-2026-09-16.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-16.pdf"
@@ -27,11 +47,11 @@
    "updated": 0,
    "kev_added": 2,
    "kev": 3,
-   "critical": 170,
-   "high": 796,
-   "medium": 316,
-   "low": 61,
-   "unscored": 123,
+   "critical": 174,
+   "high": 806,
+   "medium": 307,
+   "low": 64,
+   "unscored": 115,
    "watchlist": 44,
    "ghsa": 18,
    "osv": 52
@@ -48,10 +68,10 @@
    "kev_added": 3,
    "kev": 4,
    "critical": 61,
-   "high": 238,
-   "medium": 321,
-   "low": 95,
-   "unscored": 100,
+   "high": 249,
+   "medium": 371,
+   "low": 102,
+   "unscored": 32,
    "watchlist": 35,
    "ghsa": 4,
    "osv": 29
@@ -167,36 +187,16 @@
    "updated": 0,
    "kev_added": 15,
    "kev": 18,
-   "critical": 102,
-   "high": 979,
+   "critical": 106,
+   "high": 975,
    "medium": 496,
    "low": 43,
    "unscored": 131,
-   "watchlist": 447,
-   "ghsa": 1,
-   "osv": 108
+   "watchlist": 506,
+   "ghsa": 2,
+   "osv": 109
   },
   "xlsx": "reports/2026/09/vulns-2026-09-08.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-08.pdf"
- },
- {
-  "date": "2026-09-07",
-  "counts": {
-   "total": 302,
-   "new": 285,
-   "updated": 0,
-   "kev_added": 17,
-   "kev": 18,
-   "critical": 17,
-   "high": 77,
-   "medium": 120,
-   "low": 43,
-   "unscored": 45,
-   "watchlist": 11,
-   "ghsa": 0,
-   "osv": 30
-  },
-  "xlsx": "reports/2026/09/vulns-2026-09-07.xlsx",
-  "pdf": "reports/2026/09/vulns-2026-09-07.pdf"
  }
 ]
