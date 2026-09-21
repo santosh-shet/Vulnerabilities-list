@@ -2,9 +2,7 @@ name: Daily vulnerability report
 
 on:
   schedule:
-    # 01:30 UTC daily = 07:00 IST (India)
-    # Gives 2+ hours of buffer before the team checks at 10:00 CET, even if
-    # GitHub delays the scheduled run. Cron is always UTC.
+    # 01:30 UTC daily = 07:00 IST
     - cron: "30 1 * * *"
   workflow_dispatch:
     inputs:
@@ -16,7 +14,8 @@ on:
         default: ""
 
 permissions:
-  contents: write   # commit data/, reports/, docs/
+  contents: write
+  issues: write        # NEW - lets the workflow open the alert issue
   pages: write
   id-token: write
 
@@ -31,7 +30,6 @@ jobs:
       xlsx: ${{ steps.build.outputs.xlsx }}
       pdf: ${{ steps.build.outputs.pdf }}
       report_date: ${{ steps.build.outputs.report_date }}
-      summary: ${{ steps.build.outputs.summary }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -46,13 +44,13 @@ jobs:
 
       - name: Fetch NVD / KEV / EPSS
         env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}   # optional but strongly recommended
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatic; raises GitHub Advisories rate limit
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -n "${{ github.event.inputs.date }}" ]; then
-            python scripts/fetch_vulns.py --date "${{ github.event.inputs.date }}"
+          if [ -n "${{ inputs.date }}" ]; then
+            python scripts/fetch_vulns.py --date "${{ inputs.date }}"
           else
-            python scripts/fetch_vulns.py --hours "${{ github.event.inputs.hours || '24' }}"
+            python scripts/fetch_vulns.py --hours "${{ inputs.hours || '24' }}"
           fi
 
       - name: Build Excel, PDF and dashboard
@@ -60,13 +58,49 @@ jobs:
         run: python scripts/build_reports.py --repo-url "https://github.com/${{ github.repository }}"
 
       - name: Commit results
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}   # PAT so the push counts as repo activity (keeps cron alive)
         run: |
           git config user.name  "vuln-bot"
           git config user.email "vuln-bot@users.noreply.github.com"
+          if [ -n "$GH_PAT" ]; then
+            git remote set-url origin "https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}.git"
+          fi
           git add data reports docs
           git commit -m "Vulnerability report ${{ steps.build.outputs.report_date }}" || echo "nothing to commit"
           git pull --rebase origin ${{ github.ref_name }}
           git push
+
+      # ── Watchlist alert as a GitHub Issue (GitHub emails the assignees) ──
+      - name: Prepare watchlist alert
+        id: notify
+        run: |
+          python scripts/notify_watchlist.py \
+            --repo-url "https://github.com/${{ github.repository }}" \
+            --branch "${{ github.ref_name }}" \
+            --out-md /tmp/watchlist-issue.md
+          # also show it in the run's Summary tab
+          [ -f /tmp/watchlist-issue.md ] && cat /tmp/watchlist-issue.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Open alert issue
+        if: steps.notify.outputs.should_notify == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSIGNEES: ${{ vars.NOTIFY_ASSIGNEES }}   # repo variable, e.g. "santosh-shet,teammate1"
+        run: |
+          gh label create vuln-watchlist --color D93F0B \
+            --description "Daily watchlist matches" --force
+
+          # keep the tracker tidy: close yesterday's alert(s) first
+          gh issue list --label vuln-watchlist --state open --json number -q '.[].number' \
+            | xargs -r -I{} gh issue close {} --comment "Superseded by today's report."
+
+          ARGS=(--title "${{ steps.notify.outputs.subject }}"
+                --body-file /tmp/watchlist-issue.md
+                --label vuln-watchlist)
+          [ -n "$ASSIGNEES" ] && ARGS+=(--assignee "$ASSIGNEES")
+          gh issue create "${ARGS[@]}"
+      # ─────────────────────────────────────────────────────────────────────
 
       - name: Upload report artefacts (90-day retention)
         uses: actions/upload-artifact@v4
@@ -81,7 +115,6 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs
-
 
   deploy-pages:
     needs: build
