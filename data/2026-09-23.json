@@ -1,22 +1,22 @@
 {
  "report_date": "2026-09-23",
- "window_start": "2026-09-22T06:20:26+00:00",
- "window_end": "2026-09-23T06:20:26+00:00",
- "generated_at": "2026-09-23T06:21:13.487166+00:00",
+ "window_start": "2026-09-22T07:29:49+00:00",
+ "window_end": "2026-09-23T07:29:49+00:00",
+ "generated_at": "2026-09-23T07:31:27.948241+00:00",
  "counts": {
-  "total": 669,
-  "new": 609,
+  "total": 667,
+  "new": 607,
   "updated": 59,
   "kev_added": 1,
   "kev": 4,
   "critical": 84,
-  "high": 204,
-  "medium": 177,
+  "high": 200,
+  "medium": 179,
   "low": 24,
   "unscored": 190,
-  "watchlist": 425,
+  "watchlist": 423,
   "ghsa": 84,
-  "osv": 181
+  "osv": 180
  },
  "watchlist_keywords": [
   "microsoft:windows",
@@ -4486,48 +4486,6 @@
    "epss": null,
    "epss_percentile": null,
    "watchlist_hits": "php, hp",
-   "watchlist_match": true,
-   "priority": "P3 - Medium"
-  },
-  {
-   "cve_id": "CVE-2026-92438",
-   "aliases": [],
-   "sources": [
-    "NVD"
-   ],
-   "reason": "New",
-   "published": "2026-09-22T07:16:31.220",
-   "last_modified": "2026-09-22T19:41:38.447",
-   "status": "Deferred",
-   "cvss_score": 8.8,
-   "cvss_severity": "HIGH",
-   "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
-   "cvss_version": "3.1",
-   "cvss_source": "contact@wpscan.com",
-   "cwe": "CWE-79",
-   "vendor_product": "",
-   "ecosystem_package": "",
-   "entities": [
-    "gin"
-   ],
-   "entity_groups": [],
-   "patched_version": "",
-   "ssvc_exploitation": "",
-   "ssvc_automatable": "",
-   "description": "The Ninja Forms WordPress plugin 3.15.3 does not escape submitted form field values before outputting them on the submission edit screen in the admin area, which could allow unauthenticated users to submit values through a public form that then execute in the browser of any high-privileged user who reviews the submission.",
-   "references": [
-    "https://wpscan.com/vulnerability/eeed1378-2c51-4d38-9dda-4a13ce330b25/"
-   ],
-   "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-92438",
-   "advisory_url": "",
-   "kev": false,
-   "kev_date_added": "",
-   "kev_due_date": "",
-   "kev_required_action": "",
-   "kev_ransomware": false,
-   "epss": 0.00347,
-   "epss_percentile": 0.28392,
-   "watchlist_hits": "gin",
    "watchlist_match": true,
    "priority": "P3 - Medium"
   },
@@ -9103,49 +9061,6 @@
    "priority": "P3 - Medium"
   },
   {
-   "cve_id": "CVE-2026-91827",
-   "aliases": [],
-   "sources": [
-    "NVD"
-   ],
-   "reason": "New",
-   "published": "2026-09-22T07:16:31.093",
-   "last_modified": "2026-09-22T19:41:38.447",
-   "status": "Deferred",
-   "cvss_score": 7.5,
-   "cvss_severity": "HIGH",
-   "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H",
-   "cvss_version": "3.1",
-   "cvss_source": "contact@wpscan.com",
-   "cwe": "CWE-502",
-   "vendor_product": "",
-   "ecosystem_package": "",
-   "entities": [
-    "gin",
-    "php"
-   ],
-   "entity_groups": [],
-   "patched_version": "",
-   "ssvc_exploitation": "",
-   "ssvc_automatable": "",
-   "description": "The Ninja Forms WordPress plugin 3.15.3 does not prevent user-submitted form field values from being deserialised when an administrator later exports form submissions to CSV, allowing unauthenticated attackers to perform PHP Object Injection; if a suitable POP chain is present via another installed plugin or theme, this can lead to actions such as arbitrary file operations or remote code execution.",
-   "references": [
-    "https://wpscan.com/vulnerability/7b279db2-92e0-4122-b5c6-aa12b7b01858/"
-   ],
-   "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-91827",
-   "advisory_url": "",
-   "kev": false,
-   "kev_date_added": "",
-   "kev_due_date": "",
-   "kev_required_action": "",
-   "kev_ransomware": false,
-   "epss": 0.00304,
-   "epss_percentile": 0.23401,
-   "watchlist_hits": "php, gin, hp",
-   "watchlist_match": true,
-   "priority": "P3 - Medium"
-  },
-  {
    "cve_id": "CVE-2026-9231",
    "aliases": [],
    "sources": [
@@ -10419,57 +10334,6 @@
    "priority": "P3 - Medium"
   },
   {
-   "cve_id": "CVE-2026-89412",
-   "aliases": [],
-   "sources": [
-    "NVD"
-   ],
-   "reason": "New",
-   "published": "2026-09-22T07:16:29.927",
-   "last_modified": "2026-09-22T19:04:55.677",
-   "status": "Deferred",
-   "cvss_score": 7.2,
-   "cvss_severity": "HIGH",
-   "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:N",
-   "cvss_version": "3.1",
-   "cvss_source": "NVD",
-   "cwe": "CWE-79",
-   "vendor_product": "",
-   "ecosystem_package": "",
-   "entities": [
-    "gin",
-    "TranslatePress \u2013 Translate Multilingual sites with AI Translation",
-    "WordPress"
-   ],
-   "entity_groups": [
-    "TranslatePress \u2013 Translate Multilingual sites with AI Translation",
-    "WordPress"
-   ],
-   "patched_version": "",
-   "ssvc_exploitation": "",
-   "ssvc_automatable": "",
-   "description": "The TranslatePress \u2013 Translate Multilingual sites with AI Translation plugin for WordPress is vulnerable to Stored Cross-Site Scripting via Translation Memory Suggestion Panel (v-html on suggestion.original) in all versions up to, and including, 3.3.5 due to insufficient input sanitization and output escaping. This makes it possible for unauthenticated attackers to inject arbitrary web scripts in pages that will execute whenever a user accesses an injected page. Unauthenticated attackers can seed the translation dictionary's original column with executable HTML because the front-end rendering pipeline decodes entity-encoded payloads via html_entity_decode() before persistence, and the original column is deliberately exempt from kses filtering \u2014 meaning no save-time sanitizer neutralizes the stored payload before it is later rendered in an administrator's session.",
-   "references": [
-    "https://plugins.trac.wordpress.org/browser/translatepress-multilingual/tags/3.3.3/assets/src/js/components/translation-memory.vue#L12",
-    "https://plugins.trac.wordpress.org/browser/translatepress-multilingual/tags/3.3.3/includes/class-translation-memory.php#L47",
-    "https://plugins.trac.wordpress.org/browser/translatepress-multilingual/tags/3.3.3/includes/class-translation-memory.php#L60",
-    "https://plugins.trac.wordpress.org/browser/translatepress-multilingual/tags/3.3.3/includes/class-translation-render.php#L1024",
-    "https://plugins.trac.wordpress.org/browser/translatepress-multilingual/tags/3.3.3/includes/class-translation-render.php#L996"
-   ],
-   "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-89412",
-   "advisory_url": "",
-   "kev": false,
-   "kev_date_added": "",
-   "kev_due_date": "",
-   "kev_required_action": "",
-   "kev_ransomware": false,
-   "epss": 0.00304,
-   "epss_percentile": 0.23321,
-   "watchlist_hits": "gin",
-   "watchlist_match": true,
-   "priority": "P3 - Medium"
-  },
-  {
    "cve_id": "CVE-2026-93778",
    "aliases": [],
    "sources": [
@@ -10614,52 +10478,6 @@
    "epss_percentile": null,
    "watchlist_hits": "",
    "watchlist_match": false,
-   "priority": "P3 - Medium"
-  },
-  {
-   "cve_id": "CVE-2026-94504",
-   "aliases": [],
-   "sources": [
-    "NVD"
-   ],
-   "reason": "New",
-   "published": "2026-09-22T07:16:31.340",
-   "last_modified": "2026-09-22T19:04:55.677",
-   "status": "Deferred",
-   "cvss_score": 7.2,
-   "cvss_severity": "HIGH",
-   "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:N",
-   "cvss_version": "3.1",
-   "cvss_source": "security@wordfence.com",
-   "cwe": "CWE-79",
-   "vendor_product": "",
-   "ecosystem_package": "",
-   "entities": [
-    "gin"
-   ],
-   "entity_groups": [],
-   "patched_version": "",
-   "ssvc_exploitation": "",
-   "ssvc_automatable": "",
-   "description": "Ninja Forms 3.15.3 stores an anonymous non-RTE textarea value and renders it without safe HTML encoding in the legacy submission editor. An attacker can break out of the textarea with stored script. When an Administrator opens the attacker-known direct submission URL, the script runs in the WordPress admin origin.",
-   "references": [
-    "https://plugins.trac.wordpress.org/browser/ninja-forms/tags/3.15.3/includes/Database/Models/Submission.php#L205",
-    "https://plugins.trac.wordpress.org/browser/ninja-forms/tags/3.15.3/includes/Fields/Textarea.php#L35",
-    "https://plugins.trac.wordpress.org/browser/ninja-forms/tags/3.15.3/includes/Templates/admin-metabox-sub-fields.html.php#L23",
-    "https://plugins.trac.wordpress.org/browser/ninja-forms/trunk/includes/Fields/Textarea.php#L35",
-    "https://plugins.trac.wordpress.org/changeset?reponame=&new=3705719%40ninja-forms%2Ftags%2F3.15.4&old=3685242%40ninja-forms%2Ftags%2F3.15.3"
-   ],
-   "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-94504",
-   "advisory_url": "",
-   "kev": false,
-   "kev_date_added": "",
-   "kev_due_date": "",
-   "kev_required_action": "",
-   "kev_ransomware": false,
-   "epss": 0.00292,
-   "epss_percentile": 0.22052,
-   "watchlist_hits": "gin",
-   "watchlist_match": true,
    "priority": "P3 - Medium"
   },
   {
@@ -12749,6 +12567,54 @@
    "priority": "P4 - Low / Unscored"
   },
   {
+   "cve_id": "CVE-2026-6831",
+   "aliases": [],
+   "sources": [
+    "NVD"
+   ],
+   "reason": "New",
+   "published": "2026-09-23T07:16:45.883",
+   "last_modified": "2026-09-23T07:16:45.883",
+   "status": "Received",
+   "cvss_score": 6.5,
+   "cvss_severity": "MEDIUM",
+   "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
+   "cvss_version": "3.1",
+   "cvss_source": "NVD",
+   "cwe": "CWE-862",
+   "vendor_product": "",
+   "ecosystem_package": "",
+   "entities": [
+    "Advanced Contact form 7 DB",
+    "gin",
+    "WordPress"
+   ],
+   "entity_groups": [
+    "Advanced Contact form 7 DB",
+    "WordPress"
+   ],
+   "patched_version": "",
+   "ssvc_exploitation": "",
+   "ssvc_automatable": "",
+   "description": "The Advanced Contact form 7 DB plugin for WordPress is vulnerable to missing authorization in all versions up to, and including, 2.0.9. This is due to the plugin not properly verifying that a user is authorized to perform an action. This makes it possible for authenticated attackers, with Contributor-level access and above, to read all Contact Form 7 submission data via the 'acf7db' shortcode.",
+   "references": [
+    "https://plugins.trac.wordpress.org/changeset?reponame=&new=3587196%40advanced-cf7-db%2Ftags%2F2.1.2&old=3510776%40advanced-cf7-db%2Ftags%2F2.1.1",
+    "https://www.wordfence.com/threat-intel/vulnerabilities/id/b3c5fe0b-8a22-4df2-9adf-b6a7fe1a8a8c?source=cve"
+   ],
+   "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-6831",
+   "advisory_url": "",
+   "kev": false,
+   "kev_date_added": "",
+   "kev_due_date": "",
+   "kev_required_action": "",
+   "kev_ransomware": false,
+   "epss": null,
+   "epss_percentile": null,
+   "watchlist_hits": "gin",
+   "watchlist_match": true,
+   "priority": "P4 - Low / Unscored"
+  },
+  {
    "cve_id": "CVE-2026-74765",
    "aliases": [],
    "sources": [
@@ -13539,6 +13405,57 @@
    "epss": 0.00221,
    "epss_percentile": 0.1288,
    "watchlist_hits": "gin",
+   "watchlist_match": true,
+   "priority": "P4 - Low / Unscored"
+  },
+  {
+   "cve_id": "CVE-2026-5924",
+   "aliases": [],
+   "sources": [
+    "NVD"
+   ],
+   "reason": "New",
+   "published": "2026-09-23T07:16:45.720",
+   "last_modified": "2026-09-23T07:16:45.720",
+   "status": "Received",
+   "cvss_score": 6.4,
+   "cvss_severity": "MEDIUM",
+   "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N",
+   "cvss_version": "3.1",
+   "cvss_source": "NVD",
+   "cwe": "CWE-79",
+   "vendor_product": "",
+   "ecosystem_package": "",
+   "entities": [
+    "Getwid \u2013 Gutenberg Blocks",
+    "gin",
+    "WordPress"
+   ],
+   "entity_groups": [
+    "Getwid \u2013 Gutenberg Blocks",
+    "WordPress"
+   ],
+   "patched_version": "",
+   "ssvc_exploitation": "",
+   "ssvc_automatable": "",
+   "description": "The Getwid \u2013 Gutenberg Blocks plugin for WordPress is vulnerable to Stored Cross-Site Scripting via the Google Maps block's 'customStyle' attribute in all versions up to, and including, 2.1.3. This is due to the use of eval() on user-controlled block content in the frontend JavaScript mapStyles() function.  This makes it possible for authenticated attackers, with Contributor-level access and above, to inject arbitrary web scripts in pages that will execute whenever a user accesses an injected page.",
+   "references": [
+    "https://plugins.trac.wordpress.org/browser/getwid/tags/2.1.3/assets/blocks/map/frontend.js#L4",
+    "https://plugins.trac.wordpress.org/browser/getwid/tags/2.1.3/includes/blocks/google-map.php#L139",
+    "https://plugins.trac.wordpress.org/browser/getwid/trunk/assets/blocks/map/frontend.js#L4",
+    "https://plugins.trac.wordpress.org/browser/getwid/trunk/includes/blocks/google-map.php#L139",
+    "https://plugins.trac.wordpress.org/changeset?reponame=&old=3514403%40getwid&new=3514403%40getwid"
+   ],
+   "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-5924",
+   "advisory_url": "",
+   "kev": false,
+   "kev_date_added": "",
+   "kev_due_date": "",
+   "kev_required_action": "",
+   "kev_ransomware": false,
+   "epss": null,
+   "epss_percentile": null,
+   "watchlist_hits": "go, gin",
    "watchlist_match": true,
    "priority": "P4 - Low / Unscored"
   },
@@ -20778,6 +20695,50 @@
    "priority": "P4 - Low / Unscored"
   },
   {
+   "cve_id": "CVE-2026-82331",
+   "aliases": [],
+   "sources": [
+    "NVD"
+   ],
+   "reason": "New",
+   "published": "2026-09-23T07:16:46.493",
+   "last_modified": "2026-09-23T07:16:46.493",
+   "status": "Received",
+   "cvss_score": null,
+   "cvss_severity": "",
+   "cvss_vector": "",
+   "cvss_version": "",
+   "cvss_source": "",
+   "cwe": "CWE-59",
+   "vendor_product": "",
+   "ecosystem_package": "",
+   "entities": [
+    "gin",
+    "python",
+    "rust"
+   ],
+   "entity_groups": [],
+   "patched_version": "",
+   "ssvc_exploitation": "",
+   "ssvc_automatable": "",
+   "description": "Improper link resolution before file access ('link following') vulnerability in the `tar` source plugin of Apache BuildStream running on Python < 3.12 allows malicious source tarballs to write files on the host, with the privileges of the user running BuildStream, via symlinks as part of source fetching.\nThe impact of this issue is mitigated by:\n\n* BuildStream projects should only use trusted sources in their elements as otherwise the build output can also not be trusted\n* Tracking a source tarball pins its SHA256 hash, which prevents MITM attacks of users that are fetching an already tracked project\n* When running on Python >= 3.12, BuildStream >= 2.3.0 already makes use of the Python `tarfile` filter functionality, which blocks the symlink escape\n\nUsers are recommended to upgrade to version 2.8.1, which fixes this issue.",
+   "references": [
+    "https://lists.apache.org/thread/9b342631x7bvtyg0pq7zgywtl2cmy34v"
+   ],
+   "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-82331",
+   "advisory_url": "",
+   "kev": false,
+   "kev_date_added": "",
+   "kev_due_date": "",
+   "kev_required_action": "",
+   "kev_ransomware": false,
+   "epss": null,
+   "epss_percentile": null,
+   "watchlist_hits": "python, gin, rust",
+   "watchlist_match": true,
+   "priority": "P4 - Low / Unscored"
+  },
+  {
    "cve_id": "CVE-2026-82843",
    "aliases": [],
    "sources": [
@@ -24941,47 +24902,6 @@
    "epss": null,
    "epss_percentile": null,
    "watchlist_hits": "npm",
-   "watchlist_match": true,
-   "priority": "P4 - Low / Unscored"
-  },
-  {
-   "cve_id": "MAL-2026-16377",
-   "aliases": [],
-   "sources": [
-    "OSV"
-   ],
-   "reason": "New",
-   "published": "2026-09-22T07:01:53Z",
-   "last_modified": "2026-09-22T14:30:06.900315452Z",
-   "status": "OSV",
-   "cvss_score": null,
-   "cvss_severity": "",
-   "cvss_vector": "",
-   "cvss_version": "",
-   "cvss_source": "",
-   "cwe": "",
-   "vendor_product": "",
-   "ecosystem_package": "PyPI:cloushaar-poc-exfil-91827",
-   "entities": [
-    "cloushaar-poc-exfil-91827",
-    "pypi"
-   ],
-   "entity_groups": [],
-   "patched_version": "",
-   "ssvc_exploitation": "",
-   "ssvc_automatable": "",
-   "description": "\n---\n_-= Per source details. Do not edit below this line.=-_\n\n## Source: amazon-inspector (58b36f7c6e3e2e536f43b51acc410985240e6de6d7bb1e1d78126131e888806f)\nThe package's setup.py, executed automatically during pip install, iterates a hardcoded list of installer-side filesystem paths (/flag, /flag.txt, /app/flag, /root/flag, and similar candidates), reads their contents, and transmits them via urllib.request.urlopen as a query-string parameter to the hardcoded endpoint https://webhook.site/f41d2013-dd84-4139-85f8-8e989e0761b8. The webhook.site host is an anonymous request-collector controlled by whoever provisioned that endpoint. The name and version suggest a proof-of-concept exfiltration package, but the shipped code performs real install-time filesystem reads and outbound HTTP exfiltration against any host that runs pip install on this artifact.\n\n## Source: kam193 (8ec6abf4fcd51274f6bf53cece87bc47051b0751b117e137c68d964b05753e16)\nInstalling the package or importing the module exfiltrates basic information about the host, and the package has no other purpose.\n\n\n---\n\nCategory: PROBABLY_PENTEST - Packages looking like typical pentest packages, but also anything that looks like testing, exploring pre-prepared kits, research & co, with clearly low-harm possibilities.\n\n\nCampaign: GENERIC-standard-pypi-install-pentest\n\n\nReasons (based on the campaign):\n\n\n - The package contains code to exfiltrate basic data from the system, like IP or username. It has a limited risk.\n\n\n - The package overrides the install command in setup.py to execute malicious code during installation.\n",
-   "references": [],
-   "nvd_url": "",
-   "advisory_url": "https://osv.dev/vulnerability/MAL-2026-16377",
-   "kev": false,
-   "kev_date_added": "",
-   "kev_due_date": "",
-   "kev_required_action": "",
-   "kev_ransomware": false,
-   "epss": null,
-   "epss_percentile": null,
-   "watchlist_hits": "pypi",
    "watchlist_match": true,
    "priority": "P4 - Low / Unscored"
   },

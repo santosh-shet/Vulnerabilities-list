@@ -2,19 +2,19 @@
  {
   "date": "2026-09-23",
   "counts": {
-   "total": 669,
-   "new": 609,
+   "total": 667,
+   "new": 607,
    "updated": 59,
    "kev_added": 1,
    "kev": 4,
    "critical": 84,
-   "high": 204,
-   "medium": 177,
+   "high": 200,
+   "medium": 179,
    "low": 24,
    "unscored": 190,
-   "watchlist": 425,
+   "watchlist": 423,
    "ghsa": 84,
-   "osv": 181
+   "osv": 180
   },
   "xlsx": "reports/2026/09/vulns-2026-09-23.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-23.pdf"
