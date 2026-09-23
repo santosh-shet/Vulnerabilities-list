@@ -1,5 +1,65 @@
 [
  {
+  "date": "2026-09-23",
+  "counts": {
+   "total": 669,
+   "new": 609,
+   "updated": 59,
+   "kev_added": 1,
+   "kev": 4,
+   "critical": 84,
+   "high": 204,
+   "medium": 177,
+   "low": 24,
+   "unscored": 190,
+   "watchlist": 425,
+   "ghsa": 84,
+   "osv": 181
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-23.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-23.pdf"
+ },
+ {
+  "date": "2026-09-22",
+  "counts": {
+   "total": 358,
+   "new": 318,
+   "updated": 39,
+   "kev_added": 1,
+   "kev": 1,
+   "critical": 17,
+   "high": 119,
+   "medium": 128,
+   "low": 34,
+   "unscored": 60,
+   "watchlist": 213,
+   "ghsa": 4,
+   "osv": 34
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-22.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-22.pdf"
+ },
+ {
+  "date": "2026-09-21",
+  "counts": {
+   "total": 144,
+   "new": 144,
+   "updated": 0,
+   "kev_added": 0,
+   "kev": 0,
+   "critical": 14,
+   "high": 27,
+   "medium": 43,
+   "low": 12,
+   "unscored": 48,
+   "watchlist": 98,
+   "ghsa": 0,
+   "osv": 46
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-21.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-21.pdf"
+ },
+ {
   "date": "2026-09-17",
   "counts": {
    "total": 1102,
@@ -138,65 +198,5 @@
   },
   "xlsx": "reports/2026/09/vulns-2026-09-11.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-11.pdf"
- },
- {
-  "date": "2026-09-10",
-  "counts": {
-   "total": 648,
-   "new": 625,
-   "updated": 13,
-   "kev_added": 10,
-   "kev": 10,
-   "critical": 57,
-   "high": 195,
-   "medium": 136,
-   "low": 8,
-   "unscored": 267,
-   "watchlist": 39,
-   "ghsa": 36,
-   "osv": 276
-  },
-  "xlsx": "reports/2026/09/vulns-2026-09-10.xlsx",
-  "pdf": "reports/2026/09/vulns-2026-09-10.pdf"
- },
- {
-  "date": "2026-09-09",
-  "counts": {
-   "total": 780,
-   "new": 738,
-   "updated": 29,
-   "kev_added": 13,
-   "kev": 16,
-   "critical": 68,
-   "high": 223,
-   "medium": 352,
-   "low": 41,
-   "unscored": 110,
-   "watchlist": 10,
-   "ghsa": 9,
-   "osv": 85
-  },
-  "xlsx": "reports/2026/09/vulns-2026-09-09.xlsx",
-  "pdf": "reports/2026/09/vulns-2026-09-09.pdf"
- },
- {
-  "date": "2026-09-08",
-  "counts": {
-   "total": 1693,
-   "new": 1678,
-   "updated": 0,
-   "kev_added": 15,
-   "kev": 18,
-   "critical": 106,
-   "high": 975,
-   "medium": 496,
-   "low": 43,
-   "unscored": 131,
-   "watchlist": 506,
-   "ghsa": 2,
-   "osv": 109
-  },
-  "xlsx": "reports/2026/09/vulns-2026-09-08.xlsx",
-  "pdf": "reports/2026/09/vulns-2026-09-08.pdf"
  }
 ]
