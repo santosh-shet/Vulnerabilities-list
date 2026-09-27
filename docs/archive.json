@@ -1,5 +1,25 @@
 [
  {
+  "date": "2026-09-27",
+  "counts": {
+   "total": 216,
+   "new": 216,
+   "updated": 0,
+   "kev_added": 0,
+   "kev": 0,
+   "critical": 16,
+   "high": 105,
+   "medium": 83,
+   "low": 7,
+   "unscored": 5,
+   "watchlist": 171,
+   "ghsa": 0,
+   "osv": 4
+  },
+  "xlsx": "reports/2026/09/vulns-2026-09-27.xlsx",
+  "pdf": "reports/2026/09/vulns-2026-09-27.pdf"
+ },
+ {
   "date": "2026-09-26",
   "counts": {
    "total": 818,
@@ -178,25 +198,5 @@
   },
   "xlsx": "reports/2026/09/vulns-2026-09-15.xlsx",
   "pdf": "reports/2026/09/vulns-2026-09-15.pdf"
- },
- {
-  "date": "2026-09-14",
-  "counts": {
-   "total": 814,
-   "new": 811,
-   "updated": 0,
-   "kev_added": 3,
-   "kev": 4,
-   "critical": 61,
-   "high": 249,
-   "medium": 371,
-   "low": 102,
-   "unscored": 32,
-   "watchlist": 35,
-   "ghsa": 4,
-   "osv": 29
-  },
-  "xlsx": "reports/2026/09/vulns-2026-09-14.xlsx",
-  "pdf": "reports/2026/09/vulns-2026-09-14.pdf"
  }
 ]
