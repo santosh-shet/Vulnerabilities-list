@@ -2,9 +2,8 @@ name: Daily vulnerability report
 
 on:
   schedule:
-    # Daily at 06:17 IST
-    - cron: "17 3 * * *"
-      timezone: "Asia/Kolkata"
+    # 01:30 UTC daily = 07:00 IST
+    - cron: "30 1 * * *"
   workflow_dispatch:
     inputs:
       hours:
@@ -58,6 +57,9 @@ jobs:
         id: build
         run: python scripts/build_reports.py --repo-url "https://github.com/${{ github.repository }}"
 
+      - name: Delete files older than retention_days (config/watchlist.yml)
+        run: python scripts/cleanup_old.py
+
       - name: Commit results
         env:
           GH_PAT: ${{ secrets.GH_PAT }}   # PAT so the push counts as repo activity (keeps cron alive)
@@ -67,7 +69,7 @@ jobs:
           if [ -n "$GH_PAT" ]; then
             git remote set-url origin "https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}.git"
           fi
-          git add data reports docs
+          git add -A data reports docs   # -A also stages the deletions
           git commit -m "Vulnerability report ${{ steps.build.outputs.report_date }}" || echo "nothing to commit"
           git pull --rebase origin ${{ github.ref_name }}
           git push

@@ -20,8 +20,11 @@
 # ---------------------------------------------------------------------------
 
 keywords:
+  # Vendors / products. Whole-word match against NVD CPE (vendor:product),
+  # or the description if NVD has not analysed the CVE yet.
+  # "vendor:product" requires both words. Underscores/hyphens = spaces.
 
-  # Technology Watchlist
+  # Microsoft
   - microsoft:windows
   - microsoft:windows_server
   - microsoft:exchange
@@ -30,21 +33,23 @@ keywords:
   - microsoft:azure
   - microsoft:azure_devops
   - microsoft:entra
-  - microsoft:entra_id
   - microsoft:active_directory
+  - microsoft:asp.net
+  - microsoft:.net
+
+  # Atlassian and Marketplace
   - atlassian
-  - atlassian:jira
-  - atlassian:confluence
-  - atlassian:bitbucket
-  - atlassian:bamboo
   - jira
   - confluence
   - bitbucket
+  - bamboo
   - xray
   - tempo
   - appfire
   - comala
   - jellyfish
+
+  # Cloud and data
   - aws
   - amazon:web_services
   - amazon:ec2
@@ -57,17 +62,20 @@ keywords:
   - redis
   - elasticsearch
   - elastic
-  - github
+
+  # DevSecOps
+  - github:enterprise_server
   - gitlab
   - jenkins
   - docker
   - kubernetes
   - terraform
   - hashicorp
-  - hashicorp:vault
   - sonarqube
-  - bamboo
+
+  # Security, identity and network
   - crowdstrike
+  - palo alto networks
   - paloaltonetworks
   - fortinet
   - cisco
@@ -77,79 +85,85 @@ keywords:
   - qualys
   - tenable
   - vmware
-  - broadcom:vmware
   - citrix
   - f5
-  - f5:big-ip
+  - big-ip
   - sonicwall
+  - check point
   - checkpoint
   - juniper
   - ivanti
+  - keycloak
+
+  # Web / middleware / runtimes
   - openssl
   - openssh
-  - keycloak
   - apache:tomcat
   - apache:http_server
   - apache:struts
   - apache:kafka
   - apache:activemq
   - nginx
-  - php
-  - spring
-  - spring_framework
-  - spring_boot
+  - nodejs:node.js
+  - spring framework
+  - spring boot
   - log4j
   - jackson
-  - jackson-databind
-  - fasterxml
   - netty
   - hibernate
   - oracle
-  - oracle:database
   - oracle:weblogic
   - oracle:java
   - ibm:websphere
   - ibm:db2
   - ibm:mq
   - sap
-  - npm
-  - node.js
-  - nodejs
+
+  # OS / hardware vendors
+  - redhat
+  - red hat
+  - suse
+  - dell
+  - hp
+  - hpe
+
+packages:
+  # Package names from GitHub Advisories / OSV only (never free text).
+  # Glob allowed. Maven: artifact id. Go: module path or last segment.
   - axios
   - express
   - lodash
   - webpack
   - react
+  - react-dom
   - vue
-  - angular
-  - next.js
+  - "@angular/*"
+  - next
   - vite
   - eslint
   - typescript
-  - pypi
-  - python
   - django
   - flask
   - fastapi
   - requests
   - urllib3
   - cryptography
-  - maven
-  - go
-  - golang
-  - gin
-  - grpc
-  - dotnet
-  - asp.net
-  - nuget
-  - microsoft:aspnetcore
-  - entity_framework
-  - rust
-  - cargo
-  - redhat
-  - suse
-  - dell
-  - hp
+  - github.com/gin-gonic/gin
+  - google.golang.org/grpc
+  - grpcio
+  - "spring-*"
+  - "jackson-*"
+  - "netty-*"
+  - "hibernate-*"
+  - "log4j*"
+  - "microsoft.entityframeworkcore*"
+  - "microsoft.aspnetcore*"
+  - xstream
+  - commons-collections
+  - commons-beanutils
+  - commons-text
+  - "org.jenkins-ci*"
+  - "org.keycloak*"
 
 # ---------------------------------------------------------------------------
 # What counts as a row
@@ -182,3 +196,6 @@ osv_ecosystems:
 
 max_enrich_calls: 400
 min_cvss: 0
+
+# Delete data/ snapshots and reports/ files older than this many days.
+retention_days: 10

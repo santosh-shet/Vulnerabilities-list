@@ -91,8 +91,79 @@ def load_config():
     cfg["sources"].setdefault("osv", True)
     cfg.setdefault("osv_ecosystems", ["Go", "PyPI", "Maven", "npm", "NuGet"])
     cfg.setdefault("max_enrich_calls", 400)
-    cfg["keywords"] = [str(k).lower() for k in cfg["keywords"]]
+    cfg.setdefault("packages", [])
+    cfg["keywords"] = [str(k).lower() for k in cfg["keywords"] or []]
+    cfg["packages"] = [str(p).lower() for p in cfg["packages"] or []]
     return cfg
+
+
+# ---------------------------------------------------------------------------
+# Watchlist matching
+# ---------------------------------------------------------------------------
+# keywords: vendors/products. Matched as WHOLE WORDS against the NVD CPE
+#           vendor:product pairs, or the description when no CPE exists yet.
+#           "vendor:product" needs both the vendor and the product.
+# packages: package names (glob allowed, e.g. "spring-*"). Matched ONLY
+#           against GHSA/OSV package names, never against free text.
+
+def _norm(text):
+    return re.sub(r"[_\-]+", " ", (text or "").lower())
+
+
+def _word(term):
+    return re.compile(r"(?<![a-z0-9])" + re.escape(_norm(term)) + r"(?![a-z0-9])")
+
+
+def compile_watchlist(cfg):
+    rules = []
+    for kw in cfg["keywords"]:
+        if ":" in kw:
+            vendor, product = kw.split(":", 1)
+            rules.append((kw, _word(vendor), _word(product)))
+        else:
+            rules.append((kw, _word(kw), None))
+    return rules, cfg["packages"]
+
+
+def watchlist_hits(record, rules, packages):
+    import fnmatch
+
+    hits = []
+    cpe_pairs = []
+    for pair in (record.get("vendor_product") or "").split(","):
+        if ":" in pair:
+            v, p = pair.split(":", 1)
+            cpe_pairs.append((_norm(v), _norm(p)))
+    desc = _norm(record.get("description"))
+    is_package = bool((record.get("ecosystem_package") or "").strip())
+
+    for label, a, b in rules:
+        if is_package and not cpe_pairs:
+            break                      # package advisories: package list only
+        if cpe_pairs:
+            if b is None:
+                ok = any(a.search(v) or a.search(p) for v, p in cpe_pairs)
+            else:
+                ok = any(a.search(v) and b.search(p) for v, p in cpe_pairs)
+        else:
+            ok = bool(a.search(desc)) and (b is None or bool(b.search(desc)))
+        if ok:
+            hits.append(label)
+
+    names = set()
+    for pkg in (record.get("ecosystem_package") or "").lower().split(","):
+        pkg = pkg.strip()
+        if ":" in pkg:
+            pkg = pkg.split(":", 1)[1]          # drop ecosystem prefix
+        if pkg:
+            names.add(pkg)
+            names.add(pkg.rsplit(":", 1)[-1])    # maven artifact
+            names.add(pkg.rsplit("/", 1)[-1])    # go / npm scoped
+    for pattern in packages:
+        if any(fnmatch.fnmatchcase(n, pattern) for n in names):
+            hits.append(pattern)
+
+    return list(dict.fromkeys(hits))
 
 
 def blank_record(item_id):
@@ -929,13 +1000,10 @@ def main():
     # ------------------------------------------------------------------
     # 8. Watchlist + priority
     # ------------------------------------------------------------------
+    wl_rules, wl_packages = compile_watchlist(cfg)
     for record in records:
         record["sources"] = sorted(set(record["sources"]))
-        target = f"{record['vendor_product']} {record['ecosystem_package']}".lower()
-        if not target.strip():
-            target = record["description"].lower()
-
-        hits = [k for k in cfg["keywords"] if k in target]
+        hits = watchlist_hits(record, wl_rules, wl_packages)
         record["watchlist_hits"] = ", ".join(hits)
         record["watchlist_match"] = bool(hits)
         record["entities"] = extract_entities(record)
