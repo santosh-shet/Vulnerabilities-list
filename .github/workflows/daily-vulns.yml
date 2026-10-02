@@ -3,7 +3,7 @@ name: Daily vulnerability report
 on:
   schedule:
     # Daily at 06:17 IST
-    - cron: "17 6 * * *"
+    - cron: "17 3 * * *"
       timezone: "Asia/Kolkata"
   workflow_dispatch:
     inputs:
