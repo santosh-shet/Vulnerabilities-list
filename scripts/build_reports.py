@@ -533,18 +533,22 @@ def build_dashboard(snapshot, xlsx_rel, pdf_rel, repo_url):
     # Vendor / Product / Package dropdown values.
     # Prefer normalized entities extracted by fetch_vulns.py; fall back to
     # structured fields for older snapshots.
-    vpp_values = set()
-    for _item in snapshot.get("records", []):
-        if not isinstance(_item, dict):
-            continue
+    def record_vpp(_item):
         _entities = _item.get("entities") or []
         if _entities:
-            vpp_values.update(str(v).strip() for v in _entities if str(v).strip())
+            vals = [str(v).strip() for v in _entities if str(v).strip()]
         else:
+            vals = []
             for _key in ("vendor_product", "ecosystem_package", "package", "product", "vendor"):
                 _value = _item.get(_key)
                 if _value:
-                    vpp_values.update(x.strip() for x in str(_value).split(",") if x.strip())
+                    vals += [x.strip() for x in str(_value).split(",") if x.strip()]
+        return list(dict.fromkeys(vals))
+
+    vpp_values = set()
+    for _item in snapshot.get("records", []):
+        if isinstance(_item, dict):
+            vpp_values.update(record_vpp(_item))
 
     vpp_options = "".join(
         f"<option value='{html.escape(v, quote=True)}'>{html.escape(v)}</option>"
@@ -598,8 +602,9 @@ def build_dashboard(snapshot, xlsx_rel, pdf_rel, repo_url):
     def row(record):
         severity = record["cvss_severity"]
         reason_class = "new" if record.get("reason") == "New" else "upd"
+        vpp_attr = html.escape("||".join(record_vpp(record)), quote=True)
         return (
-            "<tr>"
+            f"<tr data-vpp='{vpp_attr}'>"
             f"<td class='pri'>{html.escape(record['priority'])}</td>"
             f"<td><span class='rsn {reason_class}'>"
             f"{html.escape(record.get('reason', 'New'))}</span></td>"
@@ -767,36 +772,54 @@ const rsn=document.getElementById('rsn');
 const vpp=document.getElementById('vppFilter');
 const rows=[...document.querySelectorAll('#t tbody tr')];
 
-function apply(){{
+const rowVals=rows.map(r=>(r.dataset.vpp||'').split('||').filter(Boolean));
+
+function baseOk(r,i,search,severity,reason){{
+  const cells=r.children;
+  const actualReason=cells[1].innerText.trim();
+  const reasonOk =
+    !reason ||
+    (reason==='New' && actualReason==='New') ||
+    (reason==='Updated' && actualReason.startsWith('Updated')) ||
+    (reason==='KEV' && actualReason==='Added to KEV');
+  return (!search || r.innerText.toLowerCase().includes(search)) &&
+    (!severity || cells[4].innerText===severity) &&
+    (!kev.checked || cells[5].innerText==='KEV') &&
+    (!wl.checked || cells[7].innerText.trim()!=='') &&
+    reasonOk;
+}}
+
+// Rebuild the vendor/product/package list from rows that pass the other filters
+function refreshVpp(okRows){{
+  const counts=new Map();
+  okRows.forEach(i=>rowVals[i].forEach(v=>counts.set(v,(counts.get(v)||0)+1)));
+  const current=vpp.value;
+  const names=[...counts.keys()].sort((a,b)=>a.localeCompare(b,undefined,{{sensitivity:'base'}}));
+  vpp.innerHTML='<option value="">All vendors / products / packages ('+names.length+')</option>';
+  names.forEach(n=>{{
+    const o=document.createElement('option');
+    o.value=n; o.textContent=n+' ('+counts.get(n)+')';
+    vpp.appendChild(o);
+  }});
+  vpp.value=counts.has(current)?current:'';
+}}
+
+function apply(e){{
   const search=q.value.toLowerCase();
   const severity=sev.value;
   const reason=rsn.value;
-  const vendorProductPackage=vpp.value.toLowerCase();
+  const okRows=[];
+  rows.forEach((r,i)=>{{ if(baseOk(r,i,search,severity,reason)) okRows.push(i); }});
+  if(!e || e.target!==vpp) refreshVpp(okRows);
+
+  const chosen=vpp.value;
+  const okSet=new Set(okRows);
   let shown=0;
-
-  rows.forEach(r=>{{
-    const text=r.innerText.toLowerCase();
-    const cells=r.children;
-    const actualReason=cells[1].innerText.trim();
-
-    const reasonOk =
-      !reason ||
-      (reason==='New' && actualReason==='New') ||
-      (reason==='Updated' && actualReason.startsWith('Updated')) ||
-      (reason==='KEV' && actualReason==='Added to KEV');
-
-    const ok =
-      (!search || text.includes(search)) &&
-      (!severity || cells[4].innerText===severity) &&
-      (!kev.checked || cells[5].innerText==='KEV') &&
-      (!wl.checked || cells[7].innerText.trim()!=='') &&
-      (!vendorProductPackage || cells[8].innerText.toLowerCase().includes(vendorProductPackage)) &&
-      reasonOk;
-
+  rows.forEach((r,i)=>{{
+    const ok=okSet.has(i) && (!chosen || rowVals[i].includes(chosen));
     r.style.display=ok?'':'none';
     if(ok) shown++;
   }});
-
   document.getElementById('count').textContent=shown+' of '+rows.length+' shown';
 }}
 
