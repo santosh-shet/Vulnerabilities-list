@@ -2,19 +2,19 @@
  {
   "date": "2026-10-02",
   "counts": {
-   "total": 695,
-   "new": 649,
-   "updated": 46,
+   "total": 728,
+   "new": 664,
+   "updated": 64,
    "kev_added": 0,
    "kev": 1,
-   "critical": 58,
-   "high": 188,
-   "medium": 157,
-   "low": 24,
-   "unscored": 292,
-   "watchlist": 445,
+   "critical": 62,
+   "high": 196,
+   "medium": 166,
+   "low": 23,
+   "unscored": 305,
+   "watchlist": 44,
    "ghsa": 10,
-   "osv": 277
+   "osv": 279
   },
   "xlsx": "reports/2026/10/vulns-2026-10-02.xlsx",
   "pdf": "reports/2026/10/vulns-2026-10-02.pdf"
