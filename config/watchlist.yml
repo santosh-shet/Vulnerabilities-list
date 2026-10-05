@@ -1,12 +1,3 @@
-# ---------------------------------------------------------------------------
-# Tieto Technology Watchlist
-# ---------------------------------------------------------------------------
-# Specific technologies, platforms, products and high-impact open-source
-# packages relevant to enterprise environments and Tieto security work.
-#
-# Matching is case-insensitive. Keep entries specific to avoid excessive
-# false positives from generic terms such as "cloud", "database", "python",
-# "linux", ".net" or "api".
 #
 # The list includes:
 #   - Enterprise and Microsoft technologies
@@ -15,18 +6,13 @@
 #   - DevSecOps/developer platforms
 #   - Security, identity and network products
 #   - Web/middleware technologies
-#   - Software found in the Tenable scan (Totaloversikt)
-#   - Major open-source ecosystems and high-impact packages, including
-#     packages found in the BU dependency-vulnerability reports
+#   - Major open-source ecosystems and high-impact packages
 #
 # ---------------------------------------------------------------------------
 
 keywords:
-  # Vendors / products. Whole-word match against NVD CPE (vendor:product),
-  # or the description if NVD has not analysed the CVE yet.
-  # "vendor:product" requires both words. Underscores/hyphens = spaces.
 
-  # Microsoft
+  # Technology Watchlist
   - microsoft:windows
   - microsoft:windows_server
   - microsoft:exchange
@@ -35,25 +21,21 @@ keywords:
   - microsoft:azure
   - microsoft:azure_devops
   - microsoft:entra
+  - microsoft:entra_id
   - microsoft:active_directory
-  - microsoft:asp.net
-  - microsoft:.net
-  - microsoft:edge
-  - microsoft:visual_studio_code
-
-  # Atlassian and Marketplace
   - atlassian
+  - atlassian:jira
+  - atlassian:confluence
+  - atlassian:bitbucket
+  - atlassian:bamboo
   - jira
   - confluence
   - bitbucket
-  - bamboo
   - xray
   - tempo
   - appfire
   - comala
   - jellyfish
-
-  # Cloud and data
   - aws
   - amazon:web_services
   - amazon:ec2
@@ -62,32 +44,21 @@ keywords:
   - snowflake
   - postgresql
   - mysql
-  - mariadb
   - mongodb
   - redis
   - elasticsearch
   - elastic
-  - sqlite
-  - grafana
-  - splunk
-
-  # DevSecOps
-  - github:enterprise_server
+  - github
   - gitlab
   - jenkins
   - docker
   - kubernetes
   - terraform
   - hashicorp
+  - hashicorp:vault
   - sonarqube
-  - podman
-  - buildah
-  - skopeo
-  - ansible
-
-  # Security, identity and network
+  - bamboo
   - crowdstrike
-  - palo alto networks
   - paloaltonetworks
   - fortinet
   - cisco
@@ -97,191 +68,79 @@ keywords:
   - qualys
   - tenable
   - vmware
+  - broadcom:vmware
   - citrix
   - f5
-  - big-ip
+  - f5:big-ip
   - sonicwall
-  - check point
   - checkpoint
   - juniper
   - ivanti
-  - keycloak
-  - gladinet:triofox
-  - wireshark
-  - mit:kerberos_5
-  - gnutls
-  - libreswan
-
-  # Web / middleware / runtimes
   - openssl
   - openssh
-  - libssh
-  - libssh2
+  - keycloak
   - apache:tomcat
   - apache:http_server
   - apache:struts
   - apache:kafka
   - apache:activemq
-  - apache:cxf
-  - apache:poi
-  - apache:tika
-  - apache:openoffice
   - nginx
-  - haproxy
-  - nghttp2
-  - nodejs:node.js
-  - spring framework
-  - spring boot
+  - php
+  - spring
+  - spring_framework
+  - spring_boot
   - log4j
   - jackson
+  - jackson-databind
+  - fasterxml
   - netty
   - hibernate
-  - jquery
-  - php:php
-  - phpmyadmin
-  - palletsprojects:jinja
-  - haxx:curl
-  - haxx:libcurl
-  - gnu:wget
-  - azul:zulu
-  - openjdk
   - oracle
+  - oracle:database
   - oracle:weblogic
   - oracle:java
   - ibm:websphere
   - ibm:db2
   - ibm:mq
-  - ibm:http_server
-  - ibm:java
   - sap
-
-  # Desktop / client software
-  - google:chrome
-  - mozilla:firefox
-  - libreoffice
-  - notepad-plus-plus
-  - winscp
-  - vim:vim
-  - gnu:emacs
-  - imagemagick
-
-  # OS components and libraries (from Red Hat / Oracle Linux findings)
-  - gnu:glibc
-  - xmlsoft:libxml2
-  - xmlsoft:libxslt
-  - libexpat
-  - libarchive
-  - libtiff
-  - libpng
-  - giflib
-  - zlib
-  - nlnetlabs:unbound
-  - isc:bind
-  - samba
-  - libvirt
-  - qemu
-  - webkitgtk
-  - sudo_project:sudo
-  - polkit_project:polkit
-  - postfix
-  - pacemaker
-
-  # OS / hardware vendors
-  - redhat
-  - red hat
-  - suse
-  - dell
-  - hp
-  - hpe
-
-packages:
-  # Package names from GitHub Advisories / OSV only (never free text).
-  # Glob allowed. Maven: artifact id. Go: module path or last segment.
-
-  # JavaScript / npm
+  - npm
+  - node.js
+  - nodejs
   - axios
   - express
   - lodash
   - webpack
   - react
-  - react-dom
   - vue
-  - "@angular/*"
-  - next
+  - angular
+  - next.js
   - vite
   - eslint
   - typescript
-  - undici
-  - ejs
-  - qs
-  - glob
-  - tar
-  - form-data
-  - brace-expansion
-  - decode-uri-component
-  - nth-check
-  - js-yaml
-  - json5
-  - y18n
-  - moment
-  - jquery
-  - pdfjs-dist
-  - pg
-
-  # Python / PyPI
+  - pypi
+  - python
   - django
   - flask
   - fastapi
-  - starlette
   - requests
   - urllib3
   - cryptography
-  - pyopenssl
-  - certifi
-  - jinja2
-  - tornado
-  - sqlparse
-  - numpy
-  - grpcio
-
-  # Go
-  - github.com/gin-gonic/gin
-  - google.golang.org/grpc
-
-  # Java / Maven
-  - "spring-*"
-  - "jackson-*"
-  - "netty-*"
-  - "hibernate-*"
-  - "log4j*"
-  - "logback-*"
-  - "jetty-*"
-  - "cxf-*"
-  - "tika-*"
-  - "struts*"
-  - "velocity*"
-  - xstream
-  - commons-collections
-  - commons-collections4
-  - commons-beanutils
-  - commons-text
-  - commons-fileupload
-  - xercesImpl
-  - xalan
-  - gson
-  - h2
-  - hsqldb
-  - itext
-  - axis
-  - javamelody-core
-  - primefaces
-  - "org.jenkins-ci*"
-  - "org.keycloak*"
-
-  # .NET / NuGet
-  - "microsoft.entityframeworkcore*"
-  - "microsoft.aspnetcore*"
-  - "magick.net*"
+  - maven
+  - go
+  - golang
+  - gin
+  - grpc
+  - dotnet
+  - asp.net
+  - nuget
+  - microsoft:aspnetcore
+  - entity_framework
+  - rust
+  - cargo
+  - redhat
+  - suse
+  - dell
+  - hp
 
 # ---------------------------------------------------------------------------
 # What counts as a row
@@ -314,6 +173,3 @@ osv_ecosystems:
 
 max_enrich_calls: 400
 min_cvss: 0
-
-# Delete data/ snapshots and reports/ files older than this many days.
-retention_days: 10
