@@ -15,7 +15,9 @@
 #   - DevSecOps/developer platforms
 #   - Security, identity and network products
 #   - Web/middleware technologies
-#   - Major open-source ecosystems and high-impact packages
+#   - Software found in the Tenable scan (Totaloversikt)
+#   - Major open-source ecosystems and high-impact packages, including
+#     packages found in the BU dependency-vulnerability reports
 #
 # ---------------------------------------------------------------------------
 
@@ -36,6 +38,8 @@ keywords:
   - microsoft:active_directory
   - microsoft:asp.net
   - microsoft:.net
+  - microsoft:edge
+  - microsoft:visual_studio_code
 
   # Atlassian and Marketplace
   - atlassian
@@ -58,10 +62,14 @@ keywords:
   - snowflake
   - postgresql
   - mysql
+  - mariadb
   - mongodb
   - redis
   - elasticsearch
   - elastic
+  - sqlite
+  - grafana
+  - splunk
 
   # DevSecOps
   - github:enterprise_server
@@ -72,6 +80,10 @@ keywords:
   - terraform
   - hashicorp
   - sonarqube
+  - podman
+  - buildah
+  - skopeo
+  - ansible
 
   # Security, identity and network
   - crowdstrike
@@ -94,16 +106,29 @@ keywords:
   - juniper
   - ivanti
   - keycloak
+  - gladinet:triofox
+  - wireshark
+  - mit:kerberos_5
+  - gnutls
+  - libreswan
 
   # Web / middleware / runtimes
   - openssl
   - openssh
+  - libssh
+  - libssh2
   - apache:tomcat
   - apache:http_server
   - apache:struts
   - apache:kafka
   - apache:activemq
+  - apache:cxf
+  - apache:poi
+  - apache:tika
+  - apache:openoffice
   - nginx
+  - haproxy
+  - nghttp2
   - nodejs:node.js
   - spring framework
   - spring boot
@@ -111,13 +136,55 @@ keywords:
   - jackson
   - netty
   - hibernate
+  - jquery
+  - php:php
+  - phpmyadmin
+  - palletsprojects:jinja
+  - haxx:curl
+  - haxx:libcurl
+  - gnu:wget
+  - azul:zulu
+  - openjdk
   - oracle
   - oracle:weblogic
   - oracle:java
   - ibm:websphere
   - ibm:db2
   - ibm:mq
+  - ibm:http_server
+  - ibm:java
   - sap
+
+  # Desktop / client software
+  - google:chrome
+  - mozilla:firefox
+  - libreoffice
+  - notepad-plus-plus
+  - winscp
+  - vim:vim
+  - gnu:emacs
+  - imagemagick
+
+  # OS components and libraries (from Red Hat / Oracle Linux findings)
+  - gnu:glibc
+  - xmlsoft:libxml2
+  - xmlsoft:libxslt
+  - libexpat
+  - libarchive
+  - libtiff
+  - libpng
+  - giflib
+  - zlib
+  - nlnetlabs:unbound
+  - isc:bind
+  - samba
+  - libvirt
+  - qemu
+  - webkitgtk
+  - sudo_project:sudo
+  - polkit_project:polkit
+  - postfix
+  - pacemaker
 
   # OS / hardware vendors
   - redhat
@@ -130,6 +197,8 @@ keywords:
 packages:
   # Package names from GitHub Advisories / OSV only (never free text).
   # Glob allowed. Maven: artifact id. Go: module path or last segment.
+
+  # JavaScript / npm
   - axios
   - express
   - lodash
@@ -142,28 +211,77 @@ packages:
   - vite
   - eslint
   - typescript
+  - undici
+  - ejs
+  - qs
+  - glob
+  - tar
+  - form-data
+  - brace-expansion
+  - decode-uri-component
+  - nth-check
+  - js-yaml
+  - json5
+  - y18n
+  - moment
+  - jquery
+  - pdfjs-dist
+  - pg
+
+  # Python / PyPI
   - django
   - flask
   - fastapi
+  - starlette
   - requests
   - urllib3
   - cryptography
+  - pyopenssl
+  - certifi
+  - jinja2
+  - tornado
+  - sqlparse
+  - numpy
+  - grpcio
+
+  # Go
   - github.com/gin-gonic/gin
   - google.golang.org/grpc
-  - grpcio
+
+  # Java / Maven
   - "spring-*"
   - "jackson-*"
   - "netty-*"
   - "hibernate-*"
   - "log4j*"
-  - "microsoft.entityframeworkcore*"
-  - "microsoft.aspnetcore*"
+  - "logback-*"
+  - "jetty-*"
+  - "cxf-*"
+  - "tika-*"
+  - "struts*"
+  - "velocity*"
   - xstream
   - commons-collections
+  - commons-collections4
   - commons-beanutils
   - commons-text
+  - commons-fileupload
+  - xercesImpl
+  - xalan
+  - gson
+  - h2
+  - hsqldb
+  - itext
+  - axis
+  - javamelody-core
+  - primefaces
   - "org.jenkins-ci*"
   - "org.keycloak*"
+
+  # .NET / NuGet
+  - "microsoft.entityframeworkcore*"
+  - "microsoft.aspnetcore*"
+  - "magick.net*"
 
 # ---------------------------------------------------------------------------
 # What counts as a row
