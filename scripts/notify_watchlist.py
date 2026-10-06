@@ -152,41 +152,70 @@ def build_markdown_issue(snapshot, matches, repo_url, branch="main", max_rows=60
     high = sum(1 for r in matches if r.get("cvss_severity") == "HIGH")
     kev_count = sum(1 for r in matches if r.get("kev"))
 
+    # Build dashboard/repository information first
+    owner = ""
+    repo = ""
+
+    if repo_url:
+        owner_repo = repo_url.rstrip("/").split("github.com/")[-1]
+        parts = owner_repo.split("/")
+        if len(parts) >= 2:
+            owner, repo = parts[:2]
+
     lines = [
         f"**{len(matches)} vulnerabilities matched the watchlist** on {report_date} "
         f"({crit} critical, {high} high, {kev_count} in KEV) out of {counts['total']} entries.",
+    ]
+
+    # Add dashboard link only when repo_url was successfully parsed
+    if owner and repo:
+        lines.append(
+            f"Click to access complete dashboard: 📊 "
+            f"[Dashboard](https://{owner}.github.io/{repo}/)"
+        )
+
+    lines += [
         "",
         "| Priority | ID | Sev | CVSS | EPSS | KEV | Watchlist hit | Description |",
         "|---|---|---|---|---|---|---|---|",
     ]
+
     for r in matches[:max_rows]:
         score = r.get("cvss_score")
         epss = r.get("epss")
         link = r.get("nvd_url") or r.get("advisory_url") or ""
         cve = f"[{r['cve_id']}]({link})" if link else r["cve_id"]
         desc = (r.get("description") or "").replace("|", "\\|").replace("\n", " ")[:140]
+
         if len(r.get("description") or "") > 140:
             desc += "…"
+
         lines.append(
             f"| {r.get('priority','')} | {cve} | {r.get('cvss_severity') or '—'} | "
             f"{score if score is not None else '—'} | "
             f"{f'{epss:.3f}' if epss is not None else '—'} | "
             f"{'🔴' if r.get('kev') else ''} | {r.get('watchlist_hits','')} | {desc} |"
         )
-    if len(matches) > max_rows:
-        lines.append(f"\n_…and {len(matches) - max_rows} more in the full report._")
 
-    if repo_url:
-        owner_repo = repo_url.rstrip("/").split("github.com/")[-1]
-        owner, repo = owner_repo.split("/")[:2]
+    if len(matches) > max_rows:
+        lines.append(
+            f"\n_…and {len(matches) - max_rows} more in the full report._"
+        )
+
+    if repo_url and owner and repo:
         lines += [
             "",
-            f"📊 [Dashboard](https://{owner}.github.io/{repo}/) · "
             f"📥 [Excel]({repo_url}/blob/{branch}/reports/{year}/{month}/vulns-{report_date}.xlsx) · "
             f"📄 [PDF]({repo_url}/blob/{branch}/reports/{year}/{month}/vulns-{report_date}.pdf)",
         ]
-    lines += ["", f"_Window {snapshot['window_start'][:16]} → {snapshot['window_end'][:16]} UTC. "
-                  "Generated automatically by the daily vulnerability workflow._"]
+
+    lines += [
+        "",
+        f"_Window {snapshot['window_start'][:16]} → "
+        f"{snapshot['window_end'][:16]} UTC. "
+        "Generated automatically by the daily vulnerability workflow._"
+    ]
+
     return "\n".join(lines)
 
 
