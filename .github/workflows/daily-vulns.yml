@@ -2,7 +2,7 @@ name: Daily vulnerability report
 
 on:
   schedule:
-    # 01:30 UTC daily = 07:00 IST
+    # 23:30 UTC daily = 05:00 IST (early, to give GitHub's scheduler buffer)
     - cron: "30 23 * * *"
   workflow_dispatch:
     inputs:
@@ -15,7 +15,7 @@ on:
 
 permissions:
   contents: write
-  issues: write        # NEW - lets the workflow open the alert issue
+  issues: write        # lets the workflow post the watchlist comment
   pages: write
   id-token: write
 
@@ -26,6 +26,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     outputs:
       xlsx: ${{ steps.build.outputs.xlsx }}
       pdf: ${{ steps.build.outputs.pdf }}
@@ -74,7 +75,11 @@ jobs:
           git pull --rebase origin ${{ github.ref_name }}
           git push
 
-      # ── Watchlist alert as a GitHub Issue (GitHub emails the assignees) ──
+      # ── Watchlist alert ──────────────────────────────────────────────────
+      # One permanent tracker issue (created once, assigned to NOTIFY_ASSIGNEES).
+      # Each day's matches are posted as a comment on it. GitHub emails the
+      # comment to the assignees. Nothing is ever closed, so there is exactly
+      # one email per day with matches and none on days without.
       - name: Prepare watchlist alert
         id: notify
         run: |
@@ -85,7 +90,7 @@ jobs:
           # also show it in the run's Summary tab
           [ -f /tmp/watchlist-issue.md ] && cat /tmp/watchlist-issue.md >> "$GITHUB_STEP_SUMMARY" || true
 
-      - name: Open alert issue
+      - name: Post watchlist alert
         if: steps.notify.outputs.should_notify == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -94,15 +99,20 @@ jobs:
           gh label create vuln-watchlist --color D93F0B \
             --description "Daily watchlist matches" --force
 
-          # keep the tracker tidy: close yesterday's alert(s) first
-          gh issue list --label vuln-watchlist --state open --json number -q '.[].number' \
-            | xargs -r -I{} gh issue close {} --comment "Superseded by today's report."
+          # Find the single open tracker issue; create it on the very first run
+          ISSUE=$(gh issue list --label vuln-watchlist --state open --json number -q '.[0].number')
+          if [ -z "$ISSUE" ]; then
+            ARGS=(--title "Vulnerability watchlist alerts"
+                  --body "Daily watchlist matches are posted as comments below. Dashboard: https://github.com/${{ github.repository }}"
+                  --label vuln-watchlist)
+            [ -n "$ASSIGNEES" ] && ARGS+=(--assignee "$ASSIGNEES")
+            ISSUE=$(gh issue create "${ARGS[@]}" | grep -oE '[0-9]+$')
+          fi
 
-          ARGS=(--title "${{ steps.notify.outputs.subject }}"
-                --body-file /tmp/watchlist-issue.md
-                --label vuln-watchlist)
-          [ -n "$ASSIGNEES" ] && ARGS+=(--assignee "$ASSIGNEES")
-          gh issue create "${ARGS[@]}"
+          # Put today's subject on top so the email is easy to scan
+          { echo "## ${{ steps.notify.outputs.subject }}"; echo; cat /tmp/watchlist-issue.md; } > /tmp/comment.md
+
+          gh issue comment "$ISSUE" --body-file /tmp/comment.md
       # ─────────────────────────────────────────────────────────────────────
 
       - name: Upload report artefacts (90-day retention)
